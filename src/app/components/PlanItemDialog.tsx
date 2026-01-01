@@ -81,6 +81,11 @@ export function PlanItemDialog({
   const [time, setTime] = useState<string>(initialStart);
   const [duration, setDuration] = useState<number>(initialDuration);
   const [status, setStatus] = useState<PlanItem['status']>(initial.status ?? 'planned');
+  const selectedMaterial = useMemo(
+    () => (materialId === 'none' ? undefined : materials.find((m) => m.id === materialId)),
+    [materialId, materials],
+  );
+  const isCategoryLocked = Boolean(selectedMaterial);
 
   useEffect(() => {
     if (!open) return;
@@ -92,6 +97,12 @@ export function PlanItemDialog({
     setDuration(Math.min(MAX_DURATION_MINUTES, Math.max(STEP_MINUTES, clampToStep(initial.duration, STEP_MINUTES))));
     setStatus(initial.status ?? 'planned');
   }, [open, initial, defaultCategoryId, categories]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!selectedMaterial) return;
+    setCategoryId(selectedMaterial.categoryId);
+  }, [open, selectedMaterial]);
 
   const durationOptions = useMemo(() => {
     const mins = Array.from({ length: MAX_DURATION_MINUTES / STEP_MINUTES }, (_, idx) => (idx + 1) * STEP_MINUTES);
@@ -127,7 +138,7 @@ export function PlanItemDialog({
       dayOfWeek,
       startTime: roundedStart,
       duration: Math.max(STEP_MINUTES, clampToStep(duration, STEP_MINUTES)),
-      categoryId,
+      categoryId: selectedMaterial?.categoryId ?? categoryId,
       materialId: materialId === 'none' ? undefined : materialId,
       label: label.trim() || undefined,
       status,
@@ -170,7 +181,7 @@ export function PlanItemDialog({
 
               <div className="grid gap-2">
                 <Label>カテゴリ *</Label>
-                <Select value={categoryId} onValueChange={setCategoryId}>
+                <Select value={categoryId} onValueChange={setCategoryId} disabled={isCategoryLocked}>
                   <SelectTrigger>
                     <SelectValue placeholder="カテゴリを選択" />
                   </SelectTrigger>
@@ -182,6 +193,11 @@ export function PlanItemDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {isCategoryLocked ? (
+                  <p className="text-xs text-muted-foreground">
+                    教材を選ぶとカテゴリは教材に合わせて固定されます。
+                  </p>
+                ) : null}
               </div>
             </div>
 

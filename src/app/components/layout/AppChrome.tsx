@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, BookOpen, CalendarCheck, CalendarDays, History, Menu, PieChart, Settings } from 'lucide-react';
+import { ArrowLeft, BookOpen, CalendarCheck, CalendarDays, History, Menu, Settings } from 'lucide-react';
 
 import { cn } from '../ui/utils';
 import { Button } from '../ui/button';
@@ -36,7 +36,6 @@ export function AppChrome({
     activeNav,
     navigateToToday,
     navigateToWeeklyPlan,
-    navigateToSummary,
     navigateToHistory,
     navigateToMaterials,
     navigateToSettings,
@@ -93,12 +92,11 @@ export function AppChrome({
     () => [
       { key: 'today', label: '今日の予定', icon: <CalendarCheck className="w-4 h-4" />, onSelect: navigateToToday },
       { key: 'weekly', label: '今週の計画', icon: <CalendarDays className="w-4 h-4" />, onSelect: navigateToWeeklyPlan },
-      { key: 'summary', label: '今週のサマリ', icon: <PieChart className="w-4 h-4" />, onSelect: navigateToSummary },
       { key: 'history', label: '学習の実績', icon: <History className="w-4 h-4" />, onSelect: navigateToHistory },
       { key: 'materials', label: '教材管理', icon: <BookOpen className="w-4 h-4" />, onSelect: navigateToMaterials },
-      { key: 'settings', label: '生活時間の設定', icon: <Settings className="w-4 h-4" />, onSelect: navigateToSettings },
+      { key: 'settings', label: '設定', icon: <Settings className="w-4 h-4" />, onSelect: navigateToSettings },
     ],
-    [navigateToHistory, navigateToMaterials, navigateToSettings, navigateToSummary, navigateToToday, navigateToWeeklyPlan],
+    [navigateToHistory, navigateToMaterials, navigateToSettings, navigateToToday, navigateToWeeklyPlan],
   );
 
   const toggleNav = () => {

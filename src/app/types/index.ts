@@ -97,5 +97,8 @@ export interface AppData {
   planItems: PlanItem[];
   creditLedger: CreditLedgerEntry[];
   lastUsedCategoryId?: string;
+  userName?: string;
+  userGoalTitle?: string;
+  userGoalDeadline?: string;
 }
 

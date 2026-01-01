@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -9,9 +9,11 @@ import { weekIdFromStart } from '../utils/plan';
 import { AppChrome } from './layout/AppChrome';
 import { PageLayout } from './ui/page-layout';
 import { PageHeader } from './ui/page-header';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { EmptyState } from './ui/empty-state';
+import { Progress } from './ui/progress';
+import { Badge } from './ui/badge';
 
 const DAYS = ['月', '火', '水', '木', '金', '土', '日'];
 
@@ -42,6 +44,19 @@ export function TodayPage({
   const doneMinutes = todayItems
     .filter((item) => item.status === 'done')
     .reduce((sum, item) => sum + (item.actualDuration ?? item.duration), 0);
+  const progressValue = plannedMinutes > 0 ? Math.min(100, (doneMinutes / plannedMinutes) * 100) : 0;
+
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentItem = todayItems.find(
+    (item) =>
+      item.status !== 'done' && nowMinutes >= item.startTime && nowMinutes < item.startTime + item.duration,
+  );
+  const nextItem =
+    currentItem ??
+    todayItems
+      .filter((item) => item.status !== 'done' && item.startTime >= nowMinutes)
+      .sort((a, b) => a.startTime - b.startTime)[0];
 
   const handleMarkDone = (item: PlanItem) => {
     onUpdateData((prev) => ({
@@ -61,40 +76,102 @@ export function TodayPage({
       <PageLayout>
         <PageHeader
           title="今日の予定"
-          description="今日の学習ブロックを確認して、完了にしていきましょう。"
+          description="今日やる学習を確認して、完了にしていきましょう。"
           action={null}
         />
 
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground">今日の進捗</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <Calendar className="w-4 h-4 text-muted-foreground/70" />
                 <span className="font-medium text-foreground">{dateLabel}</span>
                 <span className="text-muted-foreground">{dayLabel}</span>
               </div>
-              <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
-                <div className="flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1.5 text-foreground">
-                  <span className="text-[11px] text-muted-foreground">今日の予定</span>
-                  <span className="font-semibold">{todayItems.length}コマ</span>
-                  <span className="text-muted-foreground">/</span>
-                  <span className="font-semibold">{formatMinutes(plannedMinutes)}</span>
-                </div>
-                <div className="flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1.5 text-foreground">
-                  <span className="text-[11px] text-muted-foreground">実績</span>
-                  <span className="font-semibold">{doneMinutes === 0 ? '未記録' : formatMinutes(doneMinutes)}</span>
-                </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <Badge variant="outline" className="border-border bg-secondary">
+                  予定 {todayItems.length}コマ
+                </Badge>
+                <Badge variant="outline" className="border-border bg-secondary">
+                  {plannedMinutes === 0 ? '予定 0分' : `予定 ${formatMinutes(plannedMinutes)}`}
+                </Badge>
+                <Badge variant="outline" className="border-border bg-secondary">
+                  {doneMinutes === 0 ? '実績 未記録' : `実績 ${formatMinutes(doneMinutes)}`}
+                </Badge>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              <Progress value={progressValue} className="bg-secondary" />
+              <p className="text-xs text-muted-foreground">
+                {plannedMinutes > 0 ? `進捗 ${Math.round(progressValue)}%` : '予定を入れると進捗が表示されます'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground">次にやる</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {nextItem ? (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    <span className="font-mono">
+                      {minutesToTimeString(nextItem.startTime)}〜
+                      {minutesToTimeString(nextItem.startTime + nextItem.duration)}
+                    </span>
+                    <span>（{formatMinutes(nextItem.duration)}）</span>
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">
+                    {nextItem.label ??
+                      data.materials.find((m) => m.id === nextItem.materialId)?.name ??
+                      data.categories.find((c) => c.id === nextItem.categoryId)?.name ??
+                      '学習'}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>
+                      カテゴリ：
+                      {data.categories.find((c) => c.id === nextItem.categoryId)?.name ?? '未設定'}
+                    </span>
+                    <span>・</span>
+                    <span>所要 {formatMinutes(nextItem.duration)}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {nextItem.status === 'done' ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                        <CheckCircle2 className="w-4 h-4" />
+                        完了済み
+                      </span>
+                    ) : (
+                      <Button size="sm" onClick={() => handleMarkDone(nextItem)}>
+                        完了にする
+                      </Button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-lg border border-dashed border-border bg-muted px-3 py-3 text-xs text-muted-foreground">
+                  今日の予定は完了しています。次の予定は週計画で追加できます。
+                  <div className="mt-2">
+                    <Button variant="outline" size="sm" onClick={onNavigateWeekly}>
+                      今週の計画へ
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {todayItems.length === 0 ? (
           <div className="mt-6">
             <EmptyState
-              title="今日の予定はまだありません"
-              description="週計画から学習ブロックを追加すると、今日の予定が表示されます。"
-              actions={[{ label: '週計画へ', onClick: onNavigateWeekly }]}
+              icon={<Calendar className="w-5 h-5" />}
+              title="今日の予定がありません"
+              description="今週の計画から30分だけ追加して、まずは「やった」を作りましょう。"
+              actions={[{ label: '今週の計画へ', onClick: onNavigateWeekly }]}
             />
           </div>
         ) : (

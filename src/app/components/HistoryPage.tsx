@@ -1,16 +1,15 @@
 import React, { useMemo } from 'react';
-import { addDays, format, parseISO } from 'date-fns';
+import { addDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { Calendar } from 'lucide-react';
 
 import type { AppData, PlanItem, PlanWeek } from '../types';
-import { formatPeriod } from '../utils/date';
+import { formatIsoDate, formatPeriod } from '../utils/date';
 import { formatMinutes } from '../utils/time';
 import { AppChrome } from './layout/AppChrome';
 import { PeriodSelector, type PeriodValue } from './ui/period-selector';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Chip } from './ui/chip';
 import { EmptyState } from './ui/empty-state';
 import { PageHeader } from './ui/page-header';
 import { PageLayout } from './ui/page-layout';
@@ -43,6 +42,10 @@ export function HistoryPage({
 
   const weekMap = useMemo(() => new Map(data.planWeeks.map((w) => [w.id, w])), [data.planWeeks]);
   const categoryById = useMemo(() => new Map(data.categories.map((c) => [c.id, c])), [data.categories]);
+  const today = new Date();
+  const monthStart = startOfMonth(today);
+  const monthEnd = endOfMonth(today);
+  const last30Start = addDays(today, -29);
 
   const itemsInRange = useMemo(() => {
     return data.planItems.filter((item) => {
@@ -52,6 +55,17 @@ export function HistoryPage({
       return isWithinRange(date, periodStart, periodEnd);
     });
   }, [data.planItems, periodStart, periodEnd, weekMap]);
+
+  const monthDoneMinutes = useMemo(() => {
+    return data.planItems.reduce((sum, item) => {
+      if (item.type !== 'study' || item.status !== 'done') return sum;
+      const week = weekMap.get(item.weekId);
+      if (!week) return sum;
+      const date = getItemDate(item, week);
+      if (!isWithinRange(date, monthStart, monthEnd)) return sum;
+      return sum + (item.actualDuration ?? item.duration);
+    }, 0);
+  }, [data.planItems, weekMap, monthEnd, monthStart]);
 
   const studyItems = itemsInRange.filter((item) => item.type === 'study');
   const doneMinutes = studyItems
@@ -97,8 +111,8 @@ export function HistoryPage({
       <PageLayout>
         <PageHeader
           title="学習の実績"
-          description="これまでの学習の積み上がりを確認できます。"
-          action={<Button onClick={onNavigateWeekly}>週計画へ戻る</Button>}
+          description="続けられていることが分かるように、実績を見える化します。"
+          action={<Button onClick={onNavigateWeekly}>週計画へ</Button>}
         />
 
         <div className="flex flex-wrap items-center gap-3">
@@ -106,19 +120,35 @@ export function HistoryPage({
             <Calendar className="w-4 h-4 text-slate-400" />
             <PeriodSelector value={period} onChange={onChangePeriod} mode="range" />
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onChangePeriod({ start: formatIsoDate(monthStart), end: formatIsoDate(monthEnd) })}
+            >
+              今月
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onChangePeriod({ start: formatIsoDate(last30Start), end: formatIsoDate(today) })}
+            >
+              直近30日
+            </Button>
+          </div>
           <div className="text-sm text-slate-500">表示期間: {formatPeriod(period.start, period.end)}</div>
         </div>
 
         {weeksInRange.length === 0 ? (
           <EmptyState
             icon={<Calendar className="w-5 h-5" />}
-            title="この期間の履歴はまだありません"
-            description="まずは週計画を作成し、学習ブロックを完了すると実績が表示されます。"
-            actions={[{ label: '週計画へ戻る', onClick: onNavigateWeekly }]}
+            title="この期間の実績はまだありません"
+            description="週計画で学習を完了すると、実績が表示されます。"
+            actions={[{ label: '週計画へ', onClick: onNavigateWeekly }]}
           />
         ) : (
           <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <StatCard
                 label="合計学習時間"
                 value={doneMinutes === 0 ? 'まだ記録はありません' : formatMinutes(doneMinutes)}
@@ -126,10 +156,20 @@ export function HistoryPage({
                 valueClassName={doneMinutes === 0 ? 'text-base text-slate-500 font-medium' : undefined}
               />
               <StatCard
-                label="学習の積み上げ"
-                value={doneMinutes === 0 ? 'まだ記録はありません' : `+${formatMinutes(doneMinutes)}`}
-                helper={plannedMinutes > 0 ? `達成率 ${completionRate}%` : '記録が増えると達成率が表示されます。'}
-                valueClassName={doneMinutes === 0 ? 'text-base text-slate-500 font-medium' : undefined}
+                label="達成率"
+                value={plannedMinutes > 0 ? `${completionRate}%` : '未計測'}
+                helper={
+                  plannedMinutes > 0
+                    ? `実績 ${formatMinutes(doneMinutes)} / 計画 ${formatMinutes(plannedMinutes)}`
+                    : '計画が入ると達成率が表示されます。'
+                }
+                valueClassName={plannedMinutes > 0 ? undefined : 'text-base text-slate-500 font-medium'}
+              />
+              <StatCard
+                label="今月の合計学習時間"
+                value={monthDoneMinutes === 0 ? 'まだ記録はありません' : formatMinutes(monthDoneMinutes)}
+                helper="今月の実績合計です。"
+                valueClassName={monthDoneMinutes === 0 ? 'text-base text-slate-500 font-medium' : undefined}
               />
               <StatCard
                 label="計画作成週数"
@@ -141,10 +181,6 @@ export function HistoryPage({
             <Card>
               <CardHeader className="pb-2 flex flex-wrap items-center justify-between gap-3">
                 <CardTitle className="text-sm text-slate-500">直近の学習の積み上がり</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Chip variant="filled">週</Chip>
-                  <Chip variant="outline">日</Chip>
-                </div>
               </CardHeader>
               <CardContent>
                 {chartData.length === 0 ? (

@@ -6,7 +6,6 @@ import type { AppData, PlanWeek } from './types';
 import { AppNavProvider, type NavKey } from './components/layout/AppNavContext';
 import { WeeklyPlanPage } from './components/WeeklyPlanPage';
 import { TodayPage } from './components/TodayPage';
-import { WeeklySummaryPage } from './components/WeeklySummaryPage';
 import { MaterialsPage } from './components/MaterialsPage';
 import { HistoryPage } from './components/HistoryPage';
 import { SettingsPage } from './components/SettingsPage';
@@ -18,7 +17,7 @@ import { loadAppData, saveAppData } from './data/appDataStore';
 import { getWeekRange } from './utils/week';
 import { formatIsoDate } from './utils/date';
 
-type View = 'weekly' | 'today' | 'summary' | 'history' | 'materials' | 'settings';
+type View = 'weekly' | 'today' | 'history' | 'materials' | 'settings';
 
 export default function App() {
   const [view, setView] = useState<View>('weekly');
@@ -38,13 +37,11 @@ export default function App() {
     if (view === 'settings') return 'settings';
     if (view === 'history') return 'history';
     if (view === 'today') return 'today';
-    if (view === 'summary') return 'summary';
     return 'weekly';
   }, [view]);
 
   const navigateToToday = () => setView('today');
   const navigateToWeeklyPlan = () => setView('weekly');
-  const navigateToSummary = () => setView('summary');
   const navigateToHistory = () => setView('history');
   const navigateToMaterials = () => setView('materials');
   const navigateToSettings = () => setView('settings');
@@ -104,7 +101,6 @@ export default function App() {
         activeNav,
         navigateToToday,
         navigateToWeeklyPlan,
-        navigateToSummary,
         navigateToHistory,
         navigateToMaterials,
         navigateToSettings,
@@ -127,13 +123,6 @@ export default function App() {
           onUpdateData={updateAppData}
           onNavigateSettings={navigateToSettings}
           onNavigateMaterials={navigateToMaterials}
-        />
-      )}
-
-      {view === 'summary' && (
-        <WeeklySummaryPage
-          data={appData}
-          period={period}
         />
       )}
 

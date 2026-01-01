@@ -11,6 +11,8 @@ import { LifestyleForm } from './LifestyleForm';
 import { PageHeader } from './ui/page-header';
 import { PageLayout } from './ui/page-layout';
 import { StatCard } from './ui/stat-card';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 
 function getLifestyleDurationMinutes(startTime: number, endTime: number) {
   if (startTime === endTime) return 0;
@@ -44,10 +46,16 @@ export function SettingsPage({
   const [draft, setDraft] = useState<LifestyleTemplate>(
     data.lifestyleTemplate ?? createDefaultLifestyleTemplate(),
   );
+  const [userName, setUserName] = useState(data.userName ?? '');
+  const [goalTitle, setGoalTitle] = useState(data.userGoalTitle ?? '');
+  const [goalDeadline, setGoalDeadline] = useState(data.userGoalDeadline ?? '');
 
   useEffect(() => {
     setDraft(data.lifestyleTemplate ?? createDefaultLifestyleTemplate());
-  }, [data.lifestyleTemplate]);
+    setUserName(data.userName ?? '');
+    setGoalTitle(data.userGoalTitle ?? '');
+    setGoalDeadline(data.userGoalDeadline ?? '');
+  }, [data.lifestyleTemplate, data.userGoalDeadline, data.userGoalTitle, data.userName]);
 
   const handleSave = () => {
     if (draft.weekdaySleep.startTime === draft.weekdaySleep.endTime) {
@@ -57,8 +65,11 @@ export function SettingsPage({
     onUpdateData((prev) => ({
       ...prev,
       lifestyleTemplate: { ...draft, updatedAt: new Date().toISOString() },
+      userName: userName.trim() || undefined,
+      userGoalTitle: goalTitle.trim() || undefined,
+      userGoalDeadline: goalDeadline || undefined,
     }));
-    toast.success('生活時間を保存しました');
+    toast.success('設定を保存しました');
   };
 
   const lifestyleReady = Boolean(
@@ -67,11 +78,11 @@ export function SettingsPage({
   const availableMinutes = computeAvailableMinutes(draft);
 
   return (
-    <AppChrome title="生活時間の設定" actions={null}>
+    <AppChrome title="設定" actions={null}>
       <PageLayout>
         <PageHeader
-          title="生活時間の設定"
-          description="この設定は、あなたに無理のない学習計画を作るために使われます。"
+          title="設定"
+          description="生活時間とユーザー設定をまとめて管理します。"
           action={<Button onClick={handleSave}>保存</Button>}
         />
 
@@ -84,11 +95,49 @@ export function SettingsPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-foreground">生活時間の設定</CardTitle>
+            <CardTitle className="text-base font-semibold text-foreground">生活時間（学習可能時間の計算）</CardTitle>
             <p className="text-sm text-muted-foreground">学習可能時間の計算に使用されます。</p>
           </CardHeader>
           <CardContent>
             <LifestyleForm value={draft} categories={data.categories} onChange={setDraft} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-foreground">ユーザー設定</CardTitle>
+            <p className="text-sm text-muted-foreground">表示名と目標を記録しておくことで、学習の軸がぶれにくくなります。</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>表示名</Label>
+                <Input
+                  value={userName}
+                  onChange={(event) => setUserName(event.target.value)}
+                  placeholder="例：田中 花子"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>目標名（任意）</Label>
+                <Input
+                  value={goalTitle}
+                  onChange={(event) => setGoalTitle(event.target.value)}
+                  placeholder="例：TOEIC 800"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>期限（任意）</Label>
+                <Input
+                  type="date"
+                  value={goalDeadline}
+                  onChange={(event) => setGoalDeadline(event.target.value)}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              目標は週計画の判断材料として表示されます（MVPのため最低限の項目のみ扱います）。
+            </p>
           </CardContent>
         </Card>
       </PageLayout>

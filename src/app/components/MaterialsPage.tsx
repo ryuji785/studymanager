@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { EmptyState } from './ui/empty-state';
 import { PageHeader } from './ui/page-header';
 import { PageLayout } from './ui/page-layout';
+import { cn } from './ui/utils';
 
 const CATEGORY_COLOR_POOL = [
   'bg-blue-50 text-blue-700 border-blue-200',
@@ -29,6 +30,7 @@ const CATEGORY_COLOR_POOL = [
   'bg-slate-50 text-slate-700 border-slate-200',
 ];
 
+const UNCATEGORIZED_ID = 'uncategorized';
 const MATERIAL_FOCUS_KEY = 'study-manager.materials-focus';
 
 type SortMode = 'deadline' | 'name' | 'recent';
@@ -196,6 +198,9 @@ export function MaterialsPage({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Material | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [reassignMode, setReassignMode] = useState<'uncategorized' | 'category'>('uncategorized');
+  const [reassignCategoryId, setReassignCategoryId] = useState(UNCATEGORIZED_ID);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('deadline');
   const [focusMaterialIds, setFocusMaterialIds] = useState<Set<string>>(() => {
@@ -223,6 +228,14 @@ export function MaterialsPage({
     });
     return counts;
   }, [data.materials]);
+  const planItemCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    data.planItems.forEach((item) => {
+      if (!item.categoryId) return;
+      counts.set(item.categoryId, (counts.get(item.categoryId) ?? 0) + 1);
+    });
+    return counts;
+  }, [data.planItems]);
   const filteredMaterials = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const filtered = data.materials.filter((material) => {
@@ -285,6 +298,39 @@ export function MaterialsPage({
     onUpdateData((prev) => ({ ...prev, categories: [...prev.categories, created] }));
     toast.success('カテゴリを追加しました');
     return created;
+  };
+
+  const openDeleteDialog = (category: Category) => {
+    setDeleteTarget(category);
+    setReassignMode('uncategorized');
+    const fallback =
+      data.categories.find((c) => c.id !== category.id && c.id !== UNCATEGORIZED_ID)?.id ?? UNCATEGORIZED_ID;
+    setReassignCategoryId(fallback);
+  };
+
+  const handleDeleteCategory = () => {
+    if (!deleteTarget) return;
+    const destinationId = reassignMode === 'category' ? reassignCategoryId : UNCATEGORIZED_ID;
+    if (!destinationId || destinationId === deleteTarget.id) return;
+
+    onUpdateData((prev) => {
+      const nextCategories = prev.categories.filter((c) => c.id !== deleteTarget.id);
+      return {
+        ...prev,
+        categories: nextCategories,
+        materials: prev.materials.map((material) =>
+          material.categoryId === deleteTarget.id ? { ...material, categoryId: destinationId } : material,
+        ),
+        planItems: prev.planItems.map((item) =>
+          item.categoryId === deleteTarget.id ? { ...item, categoryId: destinationId } : item,
+        ),
+        lastUsedCategoryId:
+          prev.lastUsedCategoryId === deleteTarget.id ? destinationId : prev.lastUsedCategoryId,
+      };
+    });
+
+    toast.message('カテゴリを削除しました');
+    setDeleteTarget(null);
   };
 
   const toggleFocus = (materialId: string, next: boolean) => {
@@ -457,27 +503,91 @@ export function MaterialsPage({
               <CardTitle className="text-base font-semibold text-foreground">カテゴリ管理</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {data.categories.map((category) => (
-                <div key={category.id} className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge className={category.color} variant="outline">
-                      {category.name}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{categoryCounts.get(category.id) ?? 0}件</span>
+              {data.categories.map((category) => {
+                const isUncategorized = category.id === UNCATEGORIZED_ID;
+                const materialCount = categoryCounts.get(category.id) ?? 0;
+                const planCount = planItemCounts.get(category.id) ?? 0;
+
+                return (
+                  <div key={category.id} className="rounded-lg border border-border bg-muted/50 p-3 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={category.color} variant="outline">
+                          {category.name}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          教材 {materialCount}件 / ブロック {planCount}件
+                        </span>
+                      </div>
+                      {!isUncategorized ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-rose-600"
+                          onClick={() => openDeleteDialog(category)}
+                          aria-label={`${category.name}を削除`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">カテゴリ名</Label>
+                      <Input
+                        value={category.name}
+                        onChange={(e) => {
+                          const nextName = e.target.value;
+                          onUpdateData((prev) => ({
+                            ...prev,
+                            categories: prev.categories.map((c) =>
+                              c.id === category.id ? { ...c, name: nextName } : c,
+                            ),
+                          }));
+                        }}
+                        placeholder="カテゴリ名を編集"
+                        disabled={isUncategorized}
+                      />
+                      {isUncategorized ? (
+                        <p className="text-[11px] text-muted-foreground">
+                          未分類は削除できません。削除時の受け皿として使用します。
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">カテゴリ色</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {CATEGORY_COLOR_POOL.map((color) => {
+                          const isActive = category.color === color;
+                          return (
+                            <button
+                              key={color}
+                              type="button"
+                              className={cn(
+                                'h-7 w-7 rounded-full border border-border transition',
+                                color,
+                                isActive ? 'ring-2 ring-primary/60 ring-offset-1 ring-offset-background' : 'opacity-80',
+                              )}
+                              onClick={() => {
+                                if (isUncategorized) return;
+                                onUpdateData((prev) => ({
+                                  ...prev,
+                                  categories: prev.categories.map((c) =>
+                                    c.id === category.id ? { ...c, color } : c,
+                                  ),
+                                }));
+                              }}
+                              aria-label="カテゴリ色を変更"
+                              title="カテゴリ色を変更"
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  <Input
-                    value={category.name}
-                    onChange={(e) => {
-                      const nextName = e.target.value;
-                      onUpdateData((prev) => ({
-                        ...prev,
-                        categories: prev.categories.map((c) => (c.id === category.id ? { ...c, name: nextName } : c)),
-                      }));
-                    }}
-                    placeholder="カテゴリ名を編集"
-                  />
-                </div>
-              ))}
+                );
+              })}
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="新しいカテゴリ名"
@@ -513,6 +623,84 @@ export function MaterialsPage({
         onSave={handleSaveMaterial}
         onCreateCategory={handleCreateCategory}
       />
+
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>カテゴリを削除</DialogTitle>
+            <DialogDescription>
+              {deleteTarget
+                ? `${deleteTarget.name} に紐づく教材やブロックの移動先を選んでください。`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteTarget ? (
+            <div className="space-y-4">
+              <div className="text-xs text-muted-foreground">
+                教材 {categoryCounts.get(deleteTarget.id) ?? 0}件 / ブロック {planItemCounts.get(deleteTarget.id) ?? 0}件
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="reassignMode"
+                    value="uncategorized"
+                    checked={reassignMode === 'uncategorized'}
+                    onChange={() => setReassignMode('uncategorized')}
+                  />
+                  未分類へ移動
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="reassignMode"
+                    value="category"
+                    checked={reassignMode === 'category'}
+                    onChange={() => setReassignMode('category')}
+                  />
+                  別のカテゴリへ移動
+                </label>
+              </div>
+
+              {reassignMode === 'category' ? (
+                <div className="space-y-2">
+                  <Label>移動先カテゴリ</Label>
+                  <Select value={reassignCategoryId} onValueChange={setReassignCategoryId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="カテゴリを選択" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {data.categories
+                        .filter((c) => c.id !== deleteTarget.id)
+                        .map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              キャンセル
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteCategory}>
+              削除する
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppChrome>
   );
 }

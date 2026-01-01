@@ -13,7 +13,7 @@ import type {
 
 const STORAGE_KEY = 'study-manager.appData.v2';
 const LEGACY_KEYS = ['study-manager.appData.v1', 'study-manager.appData.v1.local-user'];
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 const DEFAULT_CATEGORY_PALETTE: Array<{ name: string; color: string }> = [
   { name: '英語', color: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -25,6 +25,10 @@ const DEFAULT_CATEGORY_PALETTE: Array<{ name: string; color: string }> = [
   { name: 'その他', color: 'bg-slate-50 text-slate-700 border-slate-200' },
 ];
 
+const UNCATEGORIZED_ID = 'uncategorized';
+const UNCATEGORIZED_NAME = '未分類';
+const UNCATEGORIZED_COLOR = 'bg-slate-50 text-slate-700 border-slate-200';
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -35,12 +39,36 @@ function formatIsoDate(date: Date) {
 
 function createDefaultCategories(): Category[] {
   const now = nowIso();
-  return DEFAULT_CATEGORY_PALETTE.map((entry, index) => ({
+  const base = DEFAULT_CATEGORY_PALETTE.map((entry, index) => ({
     id: `cat_${index + 1}`,
     name: entry.name,
     color: entry.color,
     createdAt: now,
   }));
+  return [
+    ...base,
+    {
+      id: UNCATEGORIZED_ID,
+      name: UNCATEGORIZED_NAME,
+      color: UNCATEGORIZED_COLOR,
+      createdAt: now,
+    },
+  ];
+}
+
+function ensureUncategorizedCategory(categories: Category[]): Category[] {
+  if (categories.some((category) => category.id === UNCATEGORIZED_ID)) {
+    return categories;
+  }
+  return [
+    ...categories,
+    {
+      id: UNCATEGORIZED_ID,
+      name: UNCATEGORIZED_NAME,
+      color: UNCATEGORIZED_COLOR,
+      createdAt: nowIso(),
+    },
+  ];
 }
 
 export function createDefaultLifestyleTemplate(): LifestyleTemplate {
@@ -94,8 +122,17 @@ function safeJsonParse<T>(value: string): T | null {
 }
 
 function normalize(raw: Partial<AppData> | null | undefined): AppData {
-  const categories = Array.isArray(raw?.categories) && raw?.categories.length > 0 ? raw.categories : createDefaultCategories();
-  const materials = Array.isArray(raw?.materials) ? raw.materials : [];
+  const baseCategories =
+    Array.isArray(raw?.categories) && raw?.categories.length > 0 ? raw.categories : createDefaultCategories();
+  const categories = ensureUncategorizedCategory(baseCategories);
+  const categoryIds = new Set(categories.map((category) => category.id));
+  const materials = Array.isArray(raw?.materials)
+    ? raw.materials.map((material) =>
+        categoryIds.has(material.categoryId)
+          ? material
+          : { ...material, categoryId: UNCATEGORIZED_ID },
+      )
+    : [];
   const planWeeks = Array.isArray(raw?.planWeeks)
     ? raw.planWeeks.map((week) => ({
         ...week,
@@ -103,8 +140,18 @@ function normalize(raw: Partial<AppData> | null | undefined): AppData {
         subjectTargets: Array.isArray((week as any).subjectTargets) ? (week as any).subjectTargets : undefined,
       }))
     : [];
-  const planItems = Array.isArray(raw?.planItems) ? raw.planItems : [];
+  const planItems = Array.isArray(raw?.planItems)
+    ? raw.planItems.map((item) =>
+        item.categoryId && !categoryIds.has(item.categoryId)
+          ? { ...item, categoryId: UNCATEGORIZED_ID }
+          : item,
+      )
+    : [];
   const creditLedger = Array.isArray(raw?.creditLedger) ? raw.creditLedger : [];
+  const lastUsedCategoryId =
+    raw?.lastUsedCategoryId && categoryIds.has(raw.lastUsedCategoryId)
+      ? raw.lastUsedCategoryId
+      : UNCATEGORIZED_ID;
 
   return {
     schemaVersion: raw?.schemaVersion ?? CURRENT_SCHEMA_VERSION,
@@ -114,7 +161,10 @@ function normalize(raw: Partial<AppData> | null | undefined): AppData {
     planWeeks,
     planItems,
     creditLedger,
-    lastUsedCategoryId: raw?.lastUsedCategoryId,
+    lastUsedCategoryId,
+    userName: typeof raw?.userName === 'string' ? raw?.userName : undefined,
+    userGoalTitle: typeof raw?.userGoalTitle === 'string' ? raw?.userGoalTitle : undefined,
+    userGoalDeadline: typeof raw?.userGoalDeadline === 'string' ? raw?.userGoalDeadline : undefined,
   };
 }
 
