@@ -132,7 +132,6 @@ function MaterialDialog({
               <Button
                 type="button"
                 variant="outline"
-                className="bg-white"
                 onClick={() => {
                   const next = newCategoryName.trim();
                   if (!next) return;
@@ -158,7 +157,7 @@ function MaterialDialog({
           {validationError && <p className="text-xs text-red-600">{validationError}</p>}
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" className="bg-white" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             キャンセル
           </Button>
           <Button
@@ -322,8 +321,8 @@ export function MaterialsPage({
           <Card>
             <CardHeader className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="text-base text-slate-900">教材一覧</CardTitle>
-                <span className="text-xs text-slate-500">登録数: {data.materials.length}件</span>
+                <CardTitle className="text-base font-semibold text-foreground">教材一覧</CardTitle>
+                <span className="text-xs text-muted-foreground">登録数: {data.materials.length}件</span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex-1 min-w-[220px]">
@@ -370,7 +369,7 @@ export function MaterialsPage({
                   ]}
                 />
               ) : filteredMaterials.length === 0 ? (
-                <p className="text-sm text-slate-500">一致する教材がありません。</p>
+                <p className="text-sm text-muted-foreground">一致する教材がありません。</p>
               ) : (
                 <Table>
                   <TableHeader>
@@ -388,7 +387,7 @@ export function MaterialsPage({
                       const daysToDeadline = getDaysToDeadline(material.deadline);
                       const deadlineBadge =
                         typeof daysToDeadline === 'number' && daysToDeadline >= 0 ? (
-                          <Badge variant="outline" className="border-slate-200 text-slate-500">
+                          <Badge variant="outline" className="border-border text-muted-foreground">
                             {daysToDeadline === 0 ? '締切日' : `あと${daysToDeadline}日`}
                           </Badge>
                         ) : typeof daysToDeadline === 'number' ? (
@@ -398,7 +397,7 @@ export function MaterialsPage({
                         ) : null;
                       return (
                         <TableRow key={material.id}>
-                          <TableCell className="text-slate-900">{material.name}</TableCell>
+                          <TableCell className="font-medium text-foreground">{material.name}</TableCell>
                           <TableCell>
                             {category ? (
                               <Badge className={category.color} variant="outline">
@@ -409,7 +408,7 @@ export function MaterialsPage({
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
                               <span>{formatDisplayFromISO(material.deadline)}</span>
                               {deadlineBadge}
                             </div>
@@ -426,7 +425,6 @@ export function MaterialsPage({
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="bg-white"
                                 onClick={() => {
                                   setEditing(material);
                                   setDialogOpen(true);
@@ -438,7 +436,6 @@ export function MaterialsPage({
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="bg-white"
                                 onClick={() => handleDeleteMaterial(material)}
                               >
                                 <Trash2 className="w-4 h-4 mr-1" />
@@ -457,16 +454,16 @@ export function MaterialsPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base text-slate-900">カテゴリ管理</CardTitle>
+              <CardTitle className="text-base font-semibold text-foreground">カテゴリ管理</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {data.categories.map((category) => (
-                <div key={category.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3 space-y-2">
+                <div key={category.id} className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge className={category.color} variant="outline">
                       {category.name}
                     </Badge>
-                    <span className="text-xs text-slate-500">{categoryCounts.get(category.id) ?? 0}件</span>
+                    <span className="text-xs text-muted-foreground">{categoryCounts.get(category.id) ?? 0}件</span>
                   </div>
                   <Input
                     value={category.name}
@@ -489,7 +486,6 @@ export function MaterialsPage({
                 />
                 <Button
                   variant="outline"
-                  className="bg-white"
                   onClick={() => {
                     const next = newCategoryName.trim();
                     if (!next) return;

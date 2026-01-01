@@ -635,30 +635,30 @@ export function WeeklyPlanPage({
       <PageLayout>
         <PageHeader title="週計画" description={undefined} action={null} />
 
-        <Card className="bg-white shadow-sm">
-          <CardContent className="py-3">
+        <Card>
+          <CardContent className="py-4">
             <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <Calendar className="w-4 h-4 text-slate-400" />
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Calendar className="w-4 h-4 text-muted-foreground/70" />
                 <PeriodSelector value={period} onChange={onChangePeriod} mode="week" weekStartsOn={1} />
                 <span>{formatPeriod(period.start, period.end)}</span>
               </div>
               <div className="ml-auto flex flex-wrap items-center gap-2 text-xs">
-                <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-600">
-                  <span className="text-[11px] text-slate-400">今週</span>
-                  <span className="font-medium text-slate-900">{weekSlotCount}コマ</span>
-                  <span className="text-slate-400">/</span>
-                  <span className="font-medium text-slate-900">{formatMinutes(plannedMinutes)}</span>
+                <div className="flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1.5 text-foreground">
+                  <span className="text-[11px] text-muted-foreground">今週</span>
+                  <span className="font-semibold">{weekSlotCount}コマ</span>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="font-semibold">{formatMinutes(plannedMinutes)}</span>
                 </div>
-                <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-600">
-                  <span className="text-[11px] text-slate-400">今日</span>
-                  <span className="font-medium text-slate-900">{todaySlotCount}コマ</span>
-                  <span className="text-slate-400">/</span>
-                  <span className="font-medium text-slate-900">{formatMinutes(todayPlannedMinutes)}</span>
+                <div className="flex items-center gap-2 rounded-full border border-border bg-secondary px-3 py-1.5 text-foreground">
+                  <span className="text-[11px] text-muted-foreground">今日</span>
+                  <span className="font-semibold">{todaySlotCount}コマ</span>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="font-semibold">{formatMinutes(todayPlannedMinutes)}</span>
                 </div>
                 {nextLabel ? (
-                  <div className="flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-indigo-700 shadow-sm">
-                    <span className="text-[11px] text-indigo-500">次</span>
+                  <div className="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-primary shadow-sm">
+                    <span className="text-[11px] text-primary/70">次</span>
                     <span className="font-semibold">{nextLabel.replace('次: ', '')}</span>
                   </div>
                 ) : null}
@@ -697,19 +697,18 @@ export function WeeklyPlanPage({
           <div id="weekly-timetable" className={cn('order-1 lg:order-none space-y-3')}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="space-y-1">
-                <h2 className="text-base font-medium text-slate-900">今日は、どこに入れる？</h2>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <h2 className="text-base font-semibold text-foreground">今日は、どこに入れる？</h2>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>空き枠をクリックして予定を追加できます</span>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" className="bg-white" onClick={onNavigateSettings}>
+                <Button variant="outline" size="sm" onClick={onNavigateSettings}>
                   生活時間を編集
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-white"
                   onClick={() => setAutoDialogOpen(true)}
                   disabled={!lifestyleReady || autoItems.length === 0}
                 >
@@ -777,26 +776,26 @@ export function WeeklyPlanPage({
             </div>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-slate-600">残り</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">残り</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 <div>
-                  <p className="text-[11px] text-slate-500">残りの目安</p>
-                  <p className={cn('text-base font-semibold', !lifestyleReady ? 'text-slate-500' : 'text-slate-900')}>
+                  <p className="text-[11px] text-muted-foreground mb-1">残りの目安</p>
+                  <p className={cn('text-2xl font-semibold', !lifestyleReady ? 'text-muted-foreground' : 'text-foreground')}>
                     {lifestyleReady ? formatMinutes(remainingMinutes) : '未設定'}
                   </p>
                 </div>
-                <div className="grid gap-2">
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>今週の目標</span>
-                    <span className="font-mono text-slate-700">
+                <div className="grid gap-3 pt-2 border-t border-border">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">今週の目標</span>
+                    <span className="font-semibold font-mono text-foreground">
                       {plannedMinutes === 0 ? '未設定' : formatMinutes(plannedMinutes)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>今週の実績</span>
-                    <span className="font-mono text-slate-700">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">今週の実績</span>
+                    <span className="font-semibold font-mono text-foreground">
                       {doneMinutes === 0 ? '未記録' : formatMinutes(doneMinutes)}
                     </span>
                   </div>
@@ -817,40 +816,40 @@ export function WeeklyPlanPage({
             ) : null}
 
             <Card>
-              <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm text-slate-600">内訳</CardTitle>
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">内訳</CardTitle>
                 <Button variant="ghost" size="sm" onClick={() => setShowCategoryDetail((v) => !v)}>
                   {showCategoryDetail ? '閉じる' : 'もっと見る'}
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 {categorySummary.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                  <div className="rounded-lg border border-dashed border-border bg-muted px-3 py-3 text-xs text-muted-foreground text-center">
                     まだ記録はありません。学習を完了すると内訳が表示されます。
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {categorySummary.slice(0, 3).map((entry) => {
                       const ratio = entry.planned > 0 ? Math.min(1, entry.done / entry.planned) : 0;
                       const fillClass =
                         entry.category?.color
                           ?.split(' ')
-                          .find((item) => item.startsWith('bg-')) ?? 'bg-slate-200';
+                          .find((item) => item.startsWith('bg-')) ?? 'bg-secondary';
                       return (
-                        <div key={entry.category?.id} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs text-slate-500">
+                        <div key={entry.category?.id} className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-2">
                               {entry.category ? (
                                 <Badge variant="outline" className={entry.category.color}>
                                   {entry.category.name}
                                 </Badge>
                               ) : null}
-                              <span>実績 {formatMinutes(entry.done)}</span>
+                              <span className="text-muted-foreground">実績 {formatMinutes(entry.done)}</span>
                             </div>
-                            <span className="font-mono">{formatMinutes(entry.planned)}</span>
+                            <span className="font-semibold font-mono text-foreground">{formatMinutes(entry.planned)}</span>
                           </div>
-                          <div className="h-2 rounded-full bg-slate-100">
-                            <div className={cn('h-2 rounded-full', fillClass)} style={{ width: `${ratio * 100}%` }} />
+                          <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                            <div className={cn('h-full rounded-full transition-all duration-300', fillClass)} style={{ width: `${ratio * 100}%` }} />
                           </div>
                         </div>
                       );
@@ -858,28 +857,28 @@ export function WeeklyPlanPage({
                   </div>
                 )}
                 {showCategoryDetail && categorySummary.length > 0 && (
-                  <div className="pt-3 border-t border-slate-100 space-y-3 max-h-[320px] overflow-auto">
+                  <div className="pt-4 border-t border-border space-y-4 max-h-[320px] overflow-auto">
                     {categorySummary.map((entry) => {
                       const ratio = entry.planned > 0 ? Math.min(1, entry.done / entry.planned) : 0;
                       const fillClass =
                         entry.category?.color
                           ?.split(' ')
-                          .find((item) => item.startsWith('bg-')) ?? 'bg-slate-200';
+                          .find((item) => item.startsWith('bg-')) ?? 'bg-secondary';
                       return (
-                        <div key={entry.category?.id} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs text-slate-500">
+                        <div key={entry.category?.id} className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-2">
                               {entry.category ? (
                                 <Badge variant="outline" className={entry.category.color}>
                                   {entry.category.name}
                                 </Badge>
                               ) : null}
-                              <span>実績 {formatMinutes(entry.done)}</span>
+                              <span className="text-muted-foreground">実績 {formatMinutes(entry.done)}</span>
                             </div>
-                            <span className="font-mono">{formatMinutes(entry.planned)}</span>
+                            <span className="font-semibold font-mono text-foreground">{formatMinutes(entry.planned)}</span>
                           </div>
-                          <div className="h-2 rounded-full bg-slate-100">
-                            <div className={cn('h-2 rounded-full', fillClass)} style={{ width: `${ratio * 100}%` }} />
+                          <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                            <div className={cn('h-full rounded-full transition-all duration-300', fillClass)} style={{ width: `${ratio * 100}%` }} />
                           </div>
                         </div>
                       );
@@ -890,12 +889,12 @@ export function WeeklyPlanPage({
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-slate-600">未完了予定</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">未完了予定</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {studyItems.filter((item) => item.status !== 'done').length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                  <div className="rounded-lg border border-dashed border-border bg-muted px-3 py-3 text-xs text-muted-foreground text-center">
                     未完了の予定はありません。
                   </div>
                 ) : (
@@ -909,19 +908,19 @@ export function WeeklyPlanPage({
                         const endLabel = minutesToTimeString(item.startTime + item.duration);
                         const label = item.label ?? data.categories.find((c) => c.id === item.categoryId)?.name ?? '学習';
                         return (
-                          <div key={item.id} className="flex items-center justify-between gap-3 text-xs text-slate-700">
+                          <div key={item.id} className="flex items-center justify-between gap-3 text-xs p-2 rounded-lg hover:bg-accent/50 transition-colors">
                             <div className="flex items-center gap-2 min-w-0">
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
+                              <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                                 {dayLabel}
                               </span>
-                              <span className="font-mono text-slate-500">{startLabel}-{endLabel}</span>
-                              <span className="truncate text-slate-900">{label}</span>
+                              <span className="font-mono text-muted-foreground">{startLabel}-{endLabel}</span>
+                              <span className="truncate text-foreground font-medium">{label}</span>
                             </div>
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
-                              className="h-7 px-2 text-xs bg-white"
+                              className="h-7 px-3 text-xs"
                               onClick={() => handleMarkDone(item)}
                             >
                               完了にする
@@ -975,13 +974,13 @@ export function WeeklyPlanPage({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label>曜日</Label>
-                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <div className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
                     {DAYS.find((day) => day.value === editingLifestyleItem.dayOfWeek)?.label ?? ''}
                   </div>
                 </div>
                 <div className="space-y-1">
                   <Label>種別</Label>
-                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <div className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
                     {editingLifestyleItem.type === 'fixed' ? '固定予定' : '睡眠'}
                   </div>
                 </div>
@@ -1038,13 +1037,12 @@ export function WeeklyPlanPage({
                 </div>
               ) : null}
 
-              <p className="text-xs text-slate-500">終了が開始より前の場合は翌日扱いになります。</p>
+              <p className="text-xs text-muted-foreground">終了が開始より前の場合は翌日扱いになります。</p>
             </div>
           ) : null}
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
-              className="bg-white"
               onClick={() => {
                 setLifestyleItemOpen(false);
                 setEditingLifestyleItem(null);
@@ -1066,7 +1064,7 @@ export function WeeklyPlanPage({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
               <input
                 type="radio"
                 name="autoMode"
@@ -1076,7 +1074,7 @@ export function WeeklyPlanPage({
               />
               追加する（既存の自動タスクは残す）
             </label>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
               <input
                 type="radio"
                 name="autoMode"
@@ -1088,7 +1086,7 @@ export function WeeklyPlanPage({
             </label>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" className="bg-white" onClick={() => setAutoDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setAutoDialogOpen(false)}>
               キャンセル
             </Button>
             <Button
@@ -1113,7 +1111,7 @@ export function WeeklyPlanPage({
           </DialogHeader>
           <LifestyleForm value={lifestyleDraft} categories={data.categories} onChange={setLifestyleDraft} />
           <DialogFooter className="gap-2">
-            <Button variant="outline" className="bg-white" onClick={() => setSetupOpen(false)}>
+            <Button variant="outline" onClick={() => setSetupOpen(false)}>
               キャンセル
             </Button>
             <Button

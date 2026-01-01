@@ -79,13 +79,13 @@ export function SettingsPage({
           label="この設定から算出される学習可能時間（目安）"
           value={lifestyleReady ? `最大 ${formatMinutes(availableMinutes)}` : '未設定'}
           helper="生活時間から算出した目安です。"
-          valueClassName={lifestyleReady ? undefined : 'text-base text-slate-500 font-medium'}
+          valueClassName={lifestyleReady ? undefined : 'text-base text-muted-foreground font-medium'}
         />
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-slate-900">生活時間の設定</CardTitle>
-            <p className="text-sm text-slate-500">学習可能時間の計算に使用されます。</p>
+            <CardTitle className="text-base font-semibold text-foreground">生活時間の設定</CardTitle>
+            <p className="text-sm text-muted-foreground">学習可能時間の計算に使用されます。</p>
           </CardHeader>
           <CardContent>
             <LifestyleForm value={draft} categories={data.categories} onChange={setDraft} />

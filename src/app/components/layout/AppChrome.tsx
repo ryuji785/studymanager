@@ -112,14 +112,14 @@ export function AppChrome({
               if (variant === 'mobile') setMobileNavOpen(false);
             }}
             className={cn(
-              'w-full flex items-center gap-2 rounded-lg border border-transparent px-2 py-2 text-sm text-slate-700 hover:bg-slate-50',
-              isActive ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : '',
-              variant === 'desktop' && sidebarCollapsed ? 'justify-center' : '',
+              'w-full flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-accent-foreground transition-colors duration-150',
+              isActive ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' : '',
+              variant === 'desktop' && sidebarCollapsed ? 'justify-center px-2' : '',
             )}
             title={variant === 'desktop' && sidebarCollapsed ? item.label : undefined}
             aria-current={isActive ? 'page' : undefined}
           >
-            <span className="text-slate-500">{item.icon}</span>
+            <span className={cn('flex-shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')}>{item.icon}</span>
             {variant === 'desktop' && sidebarCollapsed ? null : <span className="truncate">{item.label}</span>}
           </button>
         );
@@ -128,17 +128,17 @@ export function AppChrome({
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       <div className="flex">
         <aside
           className={cn(
-            'hidden md:flex md:flex-col bg-white border-r border-slate-100',
+            'hidden md:flex md:flex-col bg-card border-r border-border',
             sidebarCollapsed ? 'w-14' : 'w-56',
           )}
         >
           <div
             className={cn(
-              'h-[var(--app-header-height)] flex items-center gap-2 px-3 border-b border-slate-100',
+              'h-[var(--app-header-height)] flex items-center gap-2 px-3 border-b border-border',
               sidebarCollapsed ? 'justify-center' : '',
             )}
           >
@@ -158,7 +158,7 @@ export function AppChrome({
         <div className="flex-1 min-w-0">
           <header
             ref={headerRef}
-            className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+            className="sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b border-border shadow-sm"
           >
             <div className="w-full px-4 md:px-6">
               <div className="h-[var(--app-header-height)] flex items-center justify-between gap-3">
@@ -191,7 +191,7 @@ export function AppChrome({
                   ) : null}
 
                   <div className="min-w-0">
-                    <div className="text-base md:text-lg font-medium text-gray-900 truncate">{title}</div>
+                    <div className="text-base md:text-lg font-semibold text-foreground truncate">{title}</div>
                   </div>
                 </div>
 
@@ -202,7 +202,7 @@ export function AppChrome({
             </div>
 
             {hasSubHeader ? (
-              <div className="border-t border-slate-100">
+              <div className="border-t border-border">
               <div className="w-full px-4 md:px-6">
                 <div className="min-h-[var(--app-subheader-height)] flex items-center">
                   {subHeaderSlot}
@@ -222,7 +222,7 @@ export function AppChrome({
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
         <SheetContent side="left" className="p-0 w-[18rem]">
-          <SheetHeader className="p-4 border-b border-slate-100">
+          <SheetHeader className="p-4 border-b border-border">
             <SheetTitle>メニュー</SheetTitle>
           </SheetHeader>
           {renderNav('mobile')}
