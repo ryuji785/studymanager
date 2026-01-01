@@ -29,13 +29,13 @@ import { cn } from './ui/utils';
 type AutoGenerateMode = 'append' | 'replace';
 
 const DAYS: Array<{ value: number; label: string }> = [
-  { value: 0, label: '?' },
-  { value: 1, label: '?' },
-  { value: 2, label: '?' },
-  { value: 3, label: '?' },
-  { value: 4, label: '?' },
-  { value: 5, label: '?' },
-  { value: 6, label: '?' },
+  { value: 0, label: '月' },
+  { value: 1, label: '火' },
+  { value: 2, label: '水' },
+  { value: 3, label: '木' },
+  { value: 4, label: '金' },
+  { value: 5, label: '土' },
+  { value: 6, label: '日' },
 ];
 
 function createDefaultWeeklyGoals(): WeeklyGoal[] {
@@ -379,14 +379,20 @@ export function WeeklyPlanPage({
     setLifestyleCategoryId(editingLifestyleItem.categoryId ?? 'none');
   }, [editingLifestyleItem]);
 
-  const ensureWeek = (prev: AppData): { next: AppData; week: PlanWeek } => {
-    const existing = prev.planWeeks.find((w) => w.weekStartDate === period.start);
+  const ensureWeek = (
+    prev: AppData,
+    target?: { start: string; end: string },
+  ): { next: AppData; week: PlanWeek } => {
+    const start = target?.start ?? period.start;
+    const end = target?.end ?? period.end;
+    const targetId = weekIdFromStart(start);
+    const existing = prev.planWeeks.find((w) => w.weekStartDate === start);
     if (existing) return { next: prev, week: existing };
     const now = new Date().toISOString();
     const nextWeek: PlanWeek = {
-      id: weekId,
-      weekStartDate: period.start,
-      weekEndDate: period.end,
+      id: targetId,
+      weekStartDate: start,
+      weekEndDate: end,
       createdAt: now,
       updatedAt: now,
       goals: defaultGoals,
@@ -712,6 +718,7 @@ export function WeeklyPlanPage({
               items={displayItems}
               categories={data.categories}
               materials={data.materials}
+              weekStartDate={period.start}
               editable={lifestyleReady}
               allowLifestyleEdit
               onLifestyleEdit={openLifestyleItemDialog}

@@ -1,4 +1,4 @@
-﻿import { format, isValid, parseISO } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 
 export function formatIsoDate(date: Date): string {
   return format(date, 'yyyy-MM-dd');

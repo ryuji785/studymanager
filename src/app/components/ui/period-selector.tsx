@@ -110,7 +110,7 @@ export function PeriodSelector({
               <div className="px-2 pt-1 text-xs text-gray-600">
                 {typeof weekStartsOn === 'number'
                   ? `開始日を選ぶと、${weekStartsOnLabel}始まりの週を自動で選択します。`
-                  : '開始日を選ぶと、1週間（開始日?6日後）の範囲が選択されます。'}
+                  : '開始日を選ぶと、1週間（開始日〜6日後）の範囲が選択されます。'}
               </div>
               <Calendar
                 mode="single"

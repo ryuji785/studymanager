@@ -1,4 +1,5 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { addDays, format, parseISO } from 'date-fns';
 import { Check, Circle, Trash2 } from 'lucide-react';
 
 import type { Category, Material, PlanItem } from '../types';
@@ -9,6 +10,7 @@ interface PlanTimeTableProps {
   items: PlanItem[];
   categories: Category[];
   materials: Material[];
+  weekStartDate?: string;
   editable?: boolean;
   allowLifestyleEdit?: boolean;
   onItemClick?: (item: PlanItem) => void;
@@ -57,6 +59,7 @@ type DragState = {
   mode: DragMode;
   item: PlanItem;
   dayOfWeek: number;
+  startX: number;
   startY: number;
   startAxis: number;
   startDuration: number;
@@ -302,6 +305,7 @@ export function PlanTimeTable({
   items,
   categories,
   materials,
+  weekStartDate,
   editable = false,
   allowLifestyleEdit = false,
   onItemClick,
@@ -360,6 +364,12 @@ export function PlanTimeTable({
     const jsDay = new Date().getDay(); // 0: Sun
     return (jsDay + 6) % 7;
   }, []);
+  const weekDates = useMemo(() => {
+    if (!weekStartDate) return null;
+    const start = parseISO(weekStartDate);
+    if (Number.isNaN(start.getTime())) return null;
+    return Array.from({ length: 7 }, (_, index) => addDays(start, index));
+  }, [weekStartDate]);
   const clampAxisStart = (value: number) =>
     Math.min(Math.max(value, START_MINUTES), START_MINUTES + TOTAL_MINUTES - SLOT_MINUTES);
 
@@ -408,6 +418,22 @@ export function PlanTimeTable({
     const clampedOffset = Math.min(Math.max(offsetY, 0), SLOT_COUNT * SLOT_HEIGHT - 1);
     const slotIndex = Math.floor(clampedOffset / SLOT_HEIGHT);
     return START_MINUTES + slotIndex * SLOT_MINUTES;
+  };
+
+  const dayIndexFromPointer = (clientX: number) => {
+    const columns = dayColumnRefs.current.filter(Boolean) as HTMLDivElement[];
+    if (columns.length === 0) return null;
+    for (let index = 0; index < columns.length; index += 1) {
+      const rect = columns[index].getBoundingClientRect();
+      if (clientX >= rect.left && clientX <= rect.right) {
+        return index;
+      }
+    }
+    const firstRect = columns[0].getBoundingClientRect();
+    const lastRect = columns[columns.length - 1].getBoundingClientRect();
+    if (clientX < firstRect.left) return 0;
+    if (clientX > lastRect.right) return columns.length - 1;
+    return null;
   };
 
   const startSelection = (event: React.PointerEvent, dayIndex: number, startAxis: number) => {
@@ -493,6 +519,7 @@ export function PlanTimeTable({
       mode,
       item,
       dayOfWeek: item.dayOfWeek,
+      startX: event.clientX,
       startY: event.clientY,
       startAxis,
       startDuration: item.duration,
@@ -515,6 +542,10 @@ export function PlanTimeTable({
       if (state.mode === 'drag') {
         const nextAxis = clampAxisStart(state.startAxis + deltaMinutes);
         const nextStart = nextAxis % DAY_MINUTES;
+        const nextDay = dayIndexFromPointer(moveEvent.clientX);
+        if (typeof nextDay === 'number') {
+          state.dayOfWeek = nextDay;
+        }
         state.previewStartTime = nextStart;
         state.previewDuration = state.startDuration;
         setDragPreview({
@@ -624,6 +655,7 @@ export function PlanTimeTable({
         <div className="border-r border-slate-100 p-2 text-center text-sm text-slate-700">時刻</div>
         {DAYS.map((day, index) => {
           const isToday = index === todayIndex;
+          const dateLabel = weekDates?.[index] ? format(weekDates[index], 'M/d') : '';
           return (
           <div
             key={day}
@@ -633,7 +665,10 @@ export function PlanTimeTable({
               isToday ? 'bg-indigo-50/60 text-indigo-700' : '',
             )}
           >
-            {day}
+            <div className="flex flex-col items-center gap-0.5 leading-none">
+              <span className="text-[11px] text-slate-500">{dateLabel}</span>
+              <span className="font-medium">{day}</span>
+            </div>
           </div>
         );
         })}

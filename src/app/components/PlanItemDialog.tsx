@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
 import type { Category, Material, PlanItem } from '../types';
@@ -145,7 +145,7 @@ export function PlanItemDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? '学習ブロックを編集' : '学習ブロックを追加'}</DialogTitle>
           <DialogDescription>
-            カテゴリと時間（30分単位）は必須です。終了が開始より前の場合は翌日扱いになります。
+            曜日と開始時刻を変更して予定を移動できます。終了が開始より前の場合は翌日扱いになります。
           </DialogDescription>
         </DialogHeader>
 
@@ -153,7 +153,7 @@ export function PlanItemDialog({
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
-                <Label>曜日</Label>
+                <Label>開始日（曜日）</Label>
                 <Select value={String(dayOfWeek)} onValueChange={(v) => setDayOfWeek(Number(v))}>
                   <SelectTrigger>
                     <SelectValue />
