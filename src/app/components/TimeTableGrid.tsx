@@ -1,0 +1,161 @@
+import React, { useMemo } from 'react';
+import { Plus } from 'lucide-react';
+
+import { ScheduleBlock as ScheduleBlockType } from '../types';
+import { ScheduleBlock } from './ScheduleBlock';
+
+interface TimeTableGridProps {
+  scheduleBlocks: ScheduleBlockType[];
+  editable?: boolean;
+  onBlockClick?: (block: ScheduleBlockType) => void;
+  onEmptySlotClick?: (dayOfWeek: number, startTime: number) => void;
+}
+
+const DAYS = ['月', '火', '水', '木', '金', '土', '日'];
+
+const START_MINUTES = 6 * 60; // 6:00
+const SLOT_MINUTES = 30;
+const TOTAL_MINUTES = 24 * 60; // 24h
+const SLOT_COUNT = TOTAL_MINUTES / SLOT_MINUTES; // 48
+const SLOT_HEIGHT = 24;
+const GRID_TEMPLATE_COLUMNS = '88px repeat(7, minmax(0, 1fr))';
+const GRID_STYLE = { gridTemplateColumns: GRID_TEMPLATE_COLUMNS } as const;
+
+function toDisplayStart(startTime: number) {
+  if (startTime >= 1440) return startTime;
+  if (startTime < START_MINUTES) return startTime + 1440;
+  return startTime;
+}
+
+function formatTimeLabel(minutesFromMidnight: number) {
+  const h = Math.floor(minutesFromMidnight / 60) % 24;
+  const m = minutesFromMidnight % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+export function TimeTableGrid({ scheduleBlocks, editable = false, onBlockClick, onEmptySlotClick }: TimeTableGridProps) {
+  const slots = useMemo(() => {
+    return Array.from({ length: SLOT_COUNT }).map((_, index) => {
+      const minutes = START_MINUTES + index * SLOT_MINUTES;
+      const minutesFromMidnight = minutes % 1440;
+      const isHourBoundary = index % 2 === 1; // 7:00, 8:00...（スロットの下線が1時間境界）
+      const isHourLabel = minutesFromMidnight % 60 === 0;
+      const label = formatTimeLabel(minutesFromMidnight);
+
+      return {
+        index,
+        startTime: minutes,
+        isHourBoundary,
+        isHourLabel,
+        label,
+      };
+    });
+  }, []);
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg">
+      {/* ヘッダー */}
+      <div
+        className="grid border-b border-gray-300 bg-gray-50 sticky z-10 rounded-t-lg"
+        style={{ ...GRID_STYLE, top: 'var(--app-chrome-sticky-top, 56px)' }}
+      >
+        <div className="border-r border-gray-300 p-2 text-center text-sm text-gray-700">時刻</div>
+        {DAYS.map((day, index) => (
+          <div
+            key={day}
+            className={`p-2 text-center text-sm text-gray-700 ${index < 6 ? 'border-r border-gray-200' : ''}`}
+          >
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* タイムテーブル本体 */}
+      <div className={`relative overflow-hidden ${editable ? '' : 'rounded-b-lg'}`}>
+        <div className="grid" style={GRID_STYLE}>
+          {/* 時間軸 */}
+          <div className="border-r border-gray-300 bg-gray-50">
+            {slots.map((slot) => (
+              <div
+                key={slot.index}
+                className={`text-xs text-center text-gray-600 flex items-center justify-center relative ${
+                  slot.index < slots.length - 1
+                    ? slot.isHourBoundary
+                      ? 'border-b border-gray-200'
+                      : 'border-b border-dashed border-gray-100'
+                    : ''
+                }`}
+                style={{ height: `${SLOT_HEIGHT}px` }}
+              >
+                <span className={slot.isHourLabel ? '' : 'text-[10px] text-gray-400'}>{slot.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* 各曜日 */}
+          {DAYS.map((day, dayIndex) => (
+            <div key={day} className={`relative ${dayIndex < 6 ? 'border-r border-gray-200' : ''}`}>
+              {/* 30分グリッド */}
+              {slots.map((slot) => (
+                <button
+                  key={slot.index}
+                  type="button"
+                  aria-label={`${day} ${formatTimeLabel(slot.startTime % 1440)} に予定を追加`}
+                  tabIndex={-1}
+                  disabled={!editable}
+                  onClick={() => onEmptySlotClick?.(dayIndex, slot.startTime)}
+                  className={`block w-full p-0 m-0 bg-transparent border-0 text-left ${
+                    slot.index < slots.length - 1
+                      ? slot.isHourBoundary
+                        ? 'border-b border-gray-200'
+                        : 'border-b border-dashed border-gray-100'
+                      : ''
+                  } ${editable ? 'hover:bg-indigo-50/40' : ''}`}
+                  style={{ height: `${SLOT_HEIGHT}px` }}
+                />
+              ))}
+
+              {/* ブロック */}
+              {scheduleBlocks
+                .filter((block) => block.dayOfWeek === dayIndex)
+                .map((block) => {
+                  const start = toDisplayStart(block.startTime);
+                  const end = start + block.duration;
+                  const axisStart = START_MINUTES;
+                  const axisEnd = START_MINUTES + TOTAL_MINUTES;
+
+                  const clippedStart = Math.max(start, axisStart);
+                  const clippedEnd = Math.min(end, axisEnd);
+                  const clippedDuration = clippedEnd - clippedStart;
+                  if (clippedDuration <= 0) return null;
+
+                  const top = ((clippedStart - axisStart) / SLOT_MINUTES) * SLOT_HEIGHT;
+                  const height = (clippedDuration / SLOT_MINUTES) * SLOT_HEIGHT;
+
+                  return (
+                    <div key={block.id} className="absolute left-0 right-0 px-1" style={{ top: `${top}px` }}>
+                      <ScheduleBlock
+                        block={block}
+                        height={height}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onBlockClick?.(block);
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {editable && (
+        <div className="border-t border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 flex items-center gap-2 rounded-b-lg">
+          <Plus className="w-3.5 h-3.5" />
+          空欄をクリックして追加 / ブロックをクリックして編集（ドラッグ＆リサイズは後回し）
+        </div>
+      )}
+    </div>
+  );
+}
