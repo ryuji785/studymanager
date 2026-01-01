@@ -81,7 +81,7 @@ export function HistoryView({ student, weeklyPlans, period, onBack, onSelectWeek
   if (plansAsc.length === 0) {
     return (
       <AppChrome
-        title="学習履歴"
+        title="学習の実績"
         back={{ label: '戻る', onClick: onBack }}
         subHeader={
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">
@@ -118,7 +118,7 @@ export function HistoryView({ student, weeklyPlans, period, onBack, onSelectWeek
 
   return (
     <AppChrome
-      title="学習履歴"
+      title="学習の実績"
       back={{ label: '戻る', onClick: onBack }}
       subHeader={
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600">

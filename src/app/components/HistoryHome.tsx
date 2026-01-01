@@ -43,7 +43,7 @@ export function HistoryHome({
 
   if (students.length === 0) {
     return (
-      <AppChrome title="学習履歴">
+      <AppChrome title="学習の実績">
         <div className="max-w-3xl mx-auto">
           <StateCard
             tone="neutral"
@@ -59,7 +59,7 @@ export function HistoryHome({
 
   return (
     <AppChrome
-      title="学習履歴"
+      title="学習の実績"
       subHeader={<p className="text-sm text-gray-600">期間と生徒を選択して、学習状況を確認します。</p>}
     >
       <div className="max-w-5xl mx-auto space-y-4">
@@ -141,4 +141,3 @@ export function HistoryHome({
     </AppChrome>
   );
 }
-

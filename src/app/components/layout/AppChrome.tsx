@@ -83,10 +83,10 @@ export function AppChrome({
 
   const navItems = useMemo<NavItem[]>(
     () => [
-      { key: 'weekly', label: '週計画', icon: <CalendarDays className="w-4 h-4" />, onSelect: navigateToWeeklyPlan },
-      { key: 'history', label: '学習履歴', icon: <History className="w-4 h-4" />, onSelect: navigateToHistory },
-      { key: 'materials', label: '教材', icon: <BookOpen className="w-4 h-4" />, onSelect: navigateToMaterials },
-      { key: 'settings', label: '設定', icon: <Settings className="w-4 h-4" />, onSelect: navigateToSettings },
+      { key: 'weekly', label: '今週の計画', icon: <CalendarDays className="w-4 h-4" />, onSelect: navigateToWeeklyPlan },
+      { key: 'history', label: '学習の実績', icon: <History className="w-4 h-4" />, onSelect: navigateToHistory },
+      { key: 'materials', label: '教材管理', icon: <BookOpen className="w-4 h-4" />, onSelect: navigateToMaterials },
+      { key: 'settings', label: '生活時間', icon: <Settings className="w-4 h-4" />, onSelect: navigateToSettings },
     ],
     [navigateToHistory, navigateToMaterials, navigateToSettings, navigateToWeeklyPlan],
   );
@@ -231,4 +231,3 @@ export function AppChrome({
     </div>
   );
 }
-

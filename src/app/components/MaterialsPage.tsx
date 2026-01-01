@@ -300,10 +300,10 @@ export function MaterialsPage({
   };
 
   return (
-    <AppChrome title="教材" actions={null}>
+    <AppChrome title="教材管理" actions={null}>
       <PageLayout>
         <PageHeader
-          title="教材"
+          title="教材管理"
           description="教材を整理すると、今週やることが明確になり、自動生成も使いやすくなります。"
           action={
             <Button

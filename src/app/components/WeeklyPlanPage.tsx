@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { Calendar, RefreshCcw } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { AppData, LifestyleBlock, LifestyleTemplate, PlanItem, PlanWeek, WeeklyGoal } from '../types';
@@ -629,11 +629,11 @@ export function WeeklyPlanPage({
 
   return (
     <AppChrome
-      title="週計画"
+      title="今週の計画"
       actions={null}
     >
       <PageLayout>
-        <PageHeader title="週計画" description={undefined} action={null} />
+        <PageHeader title="今週の計画" description={undefined} action={null} />
 
         <Card>
           <CardContent className="py-4">
@@ -658,7 +658,7 @@ export function WeeklyPlanPage({
                 </div>
                 {nextLabel ? (
                   <div className="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-primary shadow-sm">
-                    <span className="text-[11px] text-primary/70">次</span>
+                    <span className="text-[11px] text-primary/70">次の予定</span>
                     <span className="font-semibold">{nextLabel.replace('次: ', '')}</span>
                   </div>
                 ) : null}
@@ -697,7 +697,7 @@ export function WeeklyPlanPage({
           <div id="weekly-timetable" className={cn('order-1 lg:order-none space-y-3')}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="space-y-1">
-                <h2 className="text-base font-semibold text-foreground">今日は、どこに入れる？</h2>
+                <h2 className="text-base font-semibold text-foreground">今週の計画</h2>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>空き枠をクリックして予定を追加できます</span>
                 </div>
@@ -705,15 +705,6 @@ export function WeeklyPlanPage({
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={onNavigateSettings}>
                   生活時間を編集
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAutoDialogOpen(true)}
-                  disabled={!lifestyleReady || autoItems.length === 0}
-                >
-                  <RefreshCcw className="w-4 h-4 mr-2" />
-                  再生成
                 </Button>
               </div>
             </div>
@@ -775,34 +766,6 @@ export function WeeklyPlanPage({
               />
             </div>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">残り</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-[11px] text-muted-foreground mb-1">残りの目安</p>
-                  <p className={cn('text-2xl font-semibold', !lifestyleReady ? 'text-muted-foreground' : 'text-foreground')}>
-                    {lifestyleReady ? formatMinutes(remainingMinutes) : '未設定'}
-                  </p>
-                </div>
-                <div className="grid gap-3 pt-2 border-t border-border">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">今週の目標</span>
-                    <span className="font-semibold font-mono text-foreground">
-                      {plannedMinutes === 0 ? '未設定' : formatMinutes(plannedMinutes)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">今週の実績</span>
-                    <span className="font-semibold font-mono text-foreground">
-                      {doneMinutes === 0 ? '未記録' : formatMinutes(doneMinutes)}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {studyItems.length === 0 ? (
               <EmptyState
                 icon={<Calendar className="w-5 h-5" />}
@@ -817,7 +780,7 @@ export function WeeklyPlanPage({
 
             <Card>
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">内訳</CardTitle>
+                <CardTitle className="text-sm font-semibold text-muted-foreground">実績（内訳）</CardTitle>
                 <Button variant="ghost" size="sm" onClick={() => setShowCategoryDetail((v) => !v)}>
                   {showCategoryDetail ? '閉じる' : 'もっと見る'}
                 </Button>
@@ -888,50 +851,6 @@ export function WeeklyPlanPage({
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">未完了予定</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {studyItems.filter((item) => item.status !== 'done').length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-border bg-muted px-3 py-3 text-xs text-muted-foreground text-center">
-                    未完了の予定はありません。
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-[260px] overflow-auto pr-1">
-                    {studyItems
-                      .filter((item) => item.status !== 'done')
-                      .sort((a, b) => (a.dayOfWeek - b.dayOfWeek) || (a.startTime - b.startTime))
-                      .map((item) => {
-                        const dayLabel = ['月', '火', '水', '木', '金', '土', '日'][item.dayOfWeek];
-                        const startLabel = minutesToTimeString(item.startTime);
-                        const endLabel = minutesToTimeString(item.startTime + item.duration);
-                        const label = item.label ?? data.categories.find((c) => c.id === item.categoryId)?.name ?? '学習';
-                        return (
-                          <div key={item.id} className="flex items-center justify-between gap-3 text-xs p-2 rounded-lg hover:bg-accent/50 transition-colors">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                {dayLabel}
-                              </span>
-                              <span className="font-mono text-muted-foreground">{startLabel}-{endLabel}</span>
-                              <span className="truncate text-foreground font-medium">{label}</span>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-3 text-xs"
-                              onClick={() => handleMarkDone(item)}
-                            >
-                              完了にする
-                            </Button>
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </aside>
         </div>
       </PageLayout>

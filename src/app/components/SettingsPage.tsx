@@ -67,10 +67,10 @@ export function SettingsPage({
   const availableMinutes = computeAvailableMinutes(draft);
 
   return (
-    <AppChrome title="設定" actions={null}>
+    <AppChrome title="生活時間の設定" actions={null}>
       <PageLayout>
         <PageHeader
-          title="設定"
+          title="生活時間の設定"
           description="この設定は、あなたに無理のない学習計画を作るために使われます。"
           action={<Button onClick={handleSave}>保存</Button>}
         />

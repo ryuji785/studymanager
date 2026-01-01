@@ -91,12 +91,12 @@ export function HistoryPage({
 
   return (
     <AppChrome
-      title="学習履歴"
+      title="学習の実績"
       actions={null}
     >
       <PageLayout>
         <PageHeader
-          title="学習履歴"
+          title="学習の実績"
           description="これまでの学習の積み上がりを確認できます。"
           action={<Button onClick={onNavigateWeekly}>週計画へ戻る</Button>}
         />
