@@ -1,8 +1,7 @@
 
   # 学習管理WebアプリUI
 
-  This is a code bundle for 学習管理WebアプリUI. The original project is available at https://www.figma.com/design/19SicrzLVDr6kFPVBsAIrm/%E5%AD%A6%E7%BF%92%E7%AE%A1%E7%90%86Web%E3%82%A2%E3%83%97%E3%83%AAUI.
-
+  This is a code bundle for 学習管理WebアプリUI.
   ## Running the code
 
   Run `npm i` to install the dependencies.
