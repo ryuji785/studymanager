@@ -14,6 +14,7 @@ import type {
 const STORAGE_KEY = 'study-manager.appData.v2';
 const LEGACY_KEYS = ['study-manager.appData.v1', 'study-manager.appData.v1.local-user'];
 const CURRENT_SCHEMA_VERSION = 2;
+const memoryStore = new Map<string, string>();
 
 const DEFAULT_CATEGORY_PALETTE: Array<{ name: string; color: string }> = [
   { name: '英語', color: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -283,7 +284,7 @@ function migrate(raw: any): AppData {
 
 function loadLegacyData(): any | null {
   for (const key of LEGACY_KEYS) {
-    const raw = localStorage.getItem(key);
+    const raw = safeGetItem(key);
     if (!raw) continue;
     const parsed = safeJsonParse<any>(raw);
     if (parsed) return parsed;
@@ -292,7 +293,7 @@ function loadLegacyData(): any | null {
 }
 
 export function loadAppData(): AppData {
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = safeGetItem(STORAGE_KEY);
   const parsed = raw ? safeJsonParse<any>(raw) : null;
   const migrated = migrate(parsed ?? loadLegacyData());
   saveAppData(migrated);
@@ -301,7 +302,7 @@ export function loadAppData(): AppData {
 
 export function saveAppData(data: AppData) {
   const normalized = normalize(data);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+  safeSetItem(STORAGE_KEY, JSON.stringify(normalized));
 }
 
 export function seedDemoData(): AppData {
@@ -365,3 +366,20 @@ export function seedDemoData(): AppData {
   return data;
 }
 
+function safeGetItem(key: string) {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.warn('LocalStorage read failed.', error);
+    return memoryStore.get(key) ?? null;
+  }
+}
+
+function safeSetItem(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.warn('LocalStorage write failed.', error);
+    memoryStore.set(key, value);
+  }
+}

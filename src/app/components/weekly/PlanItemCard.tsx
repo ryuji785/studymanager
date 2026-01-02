@@ -33,12 +33,17 @@ export function PlanItemCard({
   category?: Category;
   material?: Material;
   onEdit: (item: PlanItem) => void;
-  onToggleDone: (item: PlanItem) => void;
+  onToggleDone?: (item: PlanItem) => void;
   className?: string;
 }) {
   const startLabel = minutesToTimeString(item.startTime);
   const endLabel = minutesToTimeString(item.startTime + item.duration);
-  const categoryName = normalizeLabel(category?.name) || '学習';
+  const categoryName =
+    item.type === 'lifestyle'
+      ? '生活時間'
+      : item.type === 'fixed'
+        ? '固定予定'
+        : normalizeLabel(category?.name) || '学習';
   const materialName = normalizeLabel(material?.name);
   const title = normalizeLabel(item.label) || materialName || categoryName;
 
@@ -93,25 +98,27 @@ export function PlanItemCard({
           <div className="truncate text-sm font-semibold text-foreground">{title}</div>
           <div className="text-xs text-muted-foreground">{categoryName}</div>
         </div>
-        <button
-          type="button"
-          className={cn(
-            'flex h-11 w-11 items-center justify-center rounded-full border border-border/60',
-            'touch-manipulation transition',
-            item.status === 'done'
-              ? 'bg-emerald-50 text-emerald-600'
-              : 'bg-white text-slate-400 hover:bg-slate-50',
-          )}
-          aria-label={item.status === 'done' ? '完了を解除' : '完了にする'}
-          onPointerDown={(event) => event.stopPropagation()}
-          onPointerUp={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleDone(item);
-          }}
-        >
-          {item.status === 'done' ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-        </button>
+        {item.type === 'study' && onToggleDone ? (
+          <button
+            type="button"
+            className={cn(
+              'flex h-11 w-11 items-center justify-center rounded-full border border-border/60',
+              'touch-manipulation transition',
+              item.status === 'done'
+                ? 'bg-emerald-50 text-emerald-600'
+                : 'bg-white text-slate-400 hover:bg-slate-50',
+            )}
+            aria-label={item.status === 'done' ? '完了を解除' : '完了にする'}
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleDone(item);
+            }}
+          >
+            {item.status === 'done' ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+          </button>
+        ) : null}
       </div>
     </div>
   );

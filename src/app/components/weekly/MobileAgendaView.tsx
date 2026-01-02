@@ -14,6 +14,7 @@ export function MobileAgendaView({
   selectedDay,
   onSelectDay,
   onEditItem,
+  onEditLifestyle,
   onToggleDone,
   onAddItem,
 }: {
@@ -23,6 +24,7 @@ export function MobileAgendaView({
   selectedDay: number;
   onSelectDay: (day: number) => void;
   onEditItem: (item: PlanItem) => void;
+  onEditLifestyle: (item: PlanItem) => void;
   onToggleDone: (item: PlanItem) => void;
   onAddItem: () => void;
 }) {
@@ -69,8 +71,8 @@ export function MobileAgendaView({
               item={item}
               category={item.categoryId ? categoriesById.get(item.categoryId) : undefined}
               material={item.materialId ? materialsById.get(item.materialId) : undefined}
-              onEdit={onEditItem}
-              onToggleDone={onToggleDone}
+              onEdit={item.type === 'study' ? onEditItem : onEditLifestyle}
+              onToggleDone={item.type === 'study' ? onToggleDone : undefined}
             />
           ))
         )}
