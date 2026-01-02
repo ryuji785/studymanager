@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collap
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { StateCard } from './states/StateCard';
 import { AppChrome } from './layout/AppChrome';
+import { formatMinutes } from '../utils/time';
 
 interface StudentWeeklyViewProps {
   student: Student;
@@ -31,6 +32,54 @@ export function StudentWeeklyView({ student, weeklyPlan, weekLabel, onViewHistor
 
   const getDayBlocks = (dayIndex: number) => {
     return weeklyPlan?.scheduleBlocks.filter((block) => block.dayOfWeek === dayIndex) ?? [];
+  };
+
+  const roundToStep = (minutes: number, step = 30) => Math.round(minutes / step) * step;
+
+  const getDaySummary = (dayIndex: number) => {
+    const blocks = getDayBlocks(dayIndex);
+    const fixedMinutes = blocks
+      .filter((block) => block.category === 'sleep' || block.category === 'school')
+      .reduce((sum, block) => sum + block.duration, 0);
+    const studyMinutes = blocks
+      .filter((block) => block.category !== 'sleep' && block.category !== 'school')
+      .reduce((sum, block) => sum + block.duration, 0);
+    const disposableMinutes = Math.max(0, 1440 - fixedMinutes);
+    const remainingMinutes = Math.max(0, disposableMinutes - studyMinutes);
+    const utilization = disposableMinutes > 0 ? Math.min(1, studyMinutes / disposableMinutes) : 0;
+    return {
+      fixedMinutes: roundToStep(fixedMinutes),
+      studyMinutes: roundToStep(studyMinutes),
+      disposableMinutes: roundToStep(disposableMinutes),
+      remainingMinutes: roundToStep(remainingMinutes),
+      utilization,
+    };
+  };
+
+  const renderDisposableSummary = (dayIndex: number, className = '') => {
+    const summary = getDaySummary(dayIndex);
+    const percent = Math.round(summary.utilization * 100);
+    const percentClamped = Math.min(100, Math.max(0, percent));
+
+    return (
+      <div className={className}>
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>可処分時間</span>
+          <span className="text-gray-700 font-medium">{formatMinutes(summary.disposableMinutes)}</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500">
+          <span>固定時間 {formatMinutes(summary.fixedMinutes)}</span>
+          <span>学習予定 {formatMinutes(summary.studyMinutes)}</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500">
+          <span>残り {formatMinutes(summary.remainingMinutes)}</span>
+          <span>{percentClamped}%</span>
+        </div>
+        <div className="mt-2 h-2 rounded-full bg-gray-100 overflow-hidden" aria-hidden="true">
+          <div className="h-full bg-indigo-500" style={{ width: `${percentClamped}%` }} />
+        </div>
+      </div>
+    );
   };
 
   const getSubjectCode = (subject: string) => {
@@ -142,17 +191,24 @@ export function StudentWeeklyView({ student, weeklyPlan, weekLabel, onViewHistor
                     <div className="text-xs text-gray-500">今日のポイント</div>
                     <div className="text-lg text-gray-900">{DAYS[selectedDay]} の予定</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs text-gray-500">学習予定時間</div>
-                    <div className="text-lg text-gray-900">
-                      {Math.round(
-                        getDayBlocks(selectedDay)
-                          .filter((b) => b.category !== 'sleep' && b.category !== 'school')
-                          .reduce((sum, b) => sum + b.duration, 0) / 30,
-                      ) * 30}
-                      <span className="text-sm text-gray-500 ml-1">分</span>
+                  <div className="flex items-end gap-6 text-right">
+                    <div>
+                      <div className="text-xs text-gray-500">可処分時間</div>
+                      <div className="text-lg text-gray-900">
+                        {formatMinutes(getDaySummary(selectedDay).disposableMinutes)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">学習予定</div>
+                      <div className="text-lg text-gray-900">
+                        {formatMinutes(getDaySummary(selectedDay).studyMinutes)}
+                      </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="mt-3">
+                  {renderDisposableSummary(selectedDay)}
                 </div>
 
                 <div className="mt-4 grid grid-cols-3 gap-3">
@@ -351,6 +407,9 @@ export function StudentWeeklyView({ student, weeklyPlan, weekLabel, onViewHistor
                 {DAYS.map((_, dayIndex) => (
                   <TabsContent key={dayIndex} value={dayIndex.toString()}>
                     <div className="space-y-2">
+                      <div className="rounded-lg border border-gray-200 bg-white p-3">
+                        {renderDisposableSummary(dayIndex)}
+                      </div>
                       {getDayBlocks(dayIndex).length === 0 ? (
                         <p className="text-center text-gray-500 py-8 text-sm">予定なし</p>
                       ) : (
