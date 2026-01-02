@@ -1,30 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { Calendar, Clock, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { AppData, LifestyleBlock, LifestyleTemplate, PlanItem, PlanWeek, WeeklyGoal } from '../types';
+import type { AppData, Category, LifestyleBlock, LifestyleTemplate, PlanItem, PlanWeek, WeeklyGoal } from '../types';
 import { createDefaultLifestyleTemplate } from '../data/appDataStore';
-import { formatPeriod } from '../utils/date';
 import { formatMinutes, minutesToTimeString, timeStringToMinutes } from '../utils/time';
-import { PlanItemDialog } from './PlanItemDialog';
-import { PlanTimeTable } from './PlanTimeTable';
-import { GoalsSection } from './GoalsSection';
 import { AppChrome } from './layout/AppChrome';
-import { PeriodSelector, type PeriodValue } from './ui/period-selector';
+import { type PeriodValue } from './ui/period-selector';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Card, CardContent } from './ui/card';
-import { EmptyState } from './ui/empty-state';
 import { PageLayout } from './ui/page-layout';
-import { Progress } from './ui/progress';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { LifestyleForm } from './LifestyleForm';
-import { cn } from './ui/utils';
+import { BlockSheet } from './weekly/BlockSheet';
+import { ScheduleView } from './weekly/ScheduleView';
+import { WeekSummary } from './weekly/WeekSummary';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 type AutoGenerateMode = 'append' | 'replace';
 
@@ -36,6 +29,16 @@ const DAYS: Array<{ value: number; label: string }> = [
   { value: 4, label: '金' },
   { value: 5, label: '土' },
   { value: 6, label: '日' },
+];
+
+const CATEGORY_COLOR_POOL = [
+  'bg-blue-50 text-blue-700 border-blue-200',
+  'bg-rose-50 text-rose-700 border-rose-200',
+  'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'bg-violet-50 text-violet-700 border-violet-200',
+  'bg-amber-50 text-amber-700 border-amber-200',
+  'bg-indigo-50 text-indigo-700 border-indigo-200',
+  'bg-slate-50 text-slate-700 border-slate-200',
 ];
 
 function createDefaultWeeklyGoals(): WeeklyGoal[] {
@@ -215,6 +218,20 @@ function computeCategoryTotals(items: PlanItem[]) {
   return totals;
 }
 
+function createCategory(name: string, usedColors: string[]): Category {
+  const color = CATEGORY_COLOR_POOL.find((entry) => !usedColors.includes(entry)) ?? CATEGORY_COLOR_POOL[0];
+  return {
+    id: `cat_${Date.now()}`,
+    name,
+    color,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function roundToStep(minutes: number, step: number) {
+  return Math.round(minutes / step) * step;
+}
+
 function generateAutoItems(params: {
   weekStart: string;
   weekId: string;
@@ -346,17 +363,8 @@ export function WeeklyPlanPage({
     const jsDay = new Date().getDay();
     return (jsDay + 6) % 7;
   }, []);
-  const todayStudyItems = studyItems.filter((item) => item.dayOfWeek === todayIndex);
-  const todaySchedule = [...todayStudyItems].sort((a, b) => a.startTime - b.startTime);
-  const todayPlannedMinutes = todayStudyItems.reduce((sum, item) => sum + item.duration, 0);
 
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const nextScheduledItem = todayStudyItems
-    .filter((item) => item.status !== 'done' && item.startTime >= nowMinutes)
-    .sort((a, b) => a.startTime - b.startTime)[0];
-
-  const [itemDialogOpen, setItemDialogOpen] = useState(false);
+  const [itemSheetOpen, setItemSheetOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<
     (Partial<PlanItem> & Pick<PlanItem, 'dayOfWeek' | 'startTime' | 'duration'>) | null
   >(null);
@@ -371,6 +379,9 @@ export function WeeklyPlanPage({
   const [lifestyleEnd, setLifestyleEnd] = useState('00:00');
   const [lifestyleLabel, setLifestyleLabel] = useState('');
   const [lifestyleCategoryId, setLifestyleCategoryId] = useState('none');
+  const [selectedDay, setSelectedDay] = useState(todayIndex);
+  const [lastTouchedTime, setLastTouchedTime] = useState<number | null>(null);
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   useEffect(() => {
     if (!setupOpen) return;
@@ -394,11 +405,14 @@ export function WeeklyPlanPage({
   }, [editingLifestyleItem]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.innerWidth < 1024) {
+    if (!isDesktop) {
       setTodayPanelOpen(false);
     }
-  }, []);
+  }, [isDesktop]);
+
+  useEffect(() => {
+    setSelectedDay(todayIndex);
+  }, [period.start, todayIndex]);
 
   const ensureWeek = (
     prev: AppData,
@@ -466,13 +480,30 @@ export function WeeklyPlanPage({
     updateWeekGoals((prevGoals) => prevGoals.filter((goal) => goal.id !== goalId));
   };
 
-  const openNewItemDialog = () => {
+  const openNewItemSheet = (dayOfWeek?: number, startTime?: number, duration?: number) => {
     if (!lifestyleReady) {
       setSetupOpen(true);
       return;
     }
-    setEditingItem(null);
-    setItemDialogOpen(true);
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const roundedNow = roundToStep(nowMinutes, 30);
+    const resolvedDay = typeof dayOfWeek === 'number' ? dayOfWeek : selectedDay;
+    const resolvedStart =
+      typeof startTime === 'number'
+        ? startTime
+        : typeof lastTouchedTime === 'number'
+          ? lastTouchedTime
+          : roundedNow;
+    setEditingItem({
+      weekId,
+      type: 'study',
+      dayOfWeek: resolvedDay,
+      startTime: resolvedStart,
+      duration: duration ?? 30,
+      status: 'planned',
+    });
+    setItemSheetOpen(true);
   };
 
   const openLifestyleItemDialog = (item: PlanItem) => {
@@ -566,8 +597,8 @@ export function WeeklyPlanPage({
     });
   };
 
-  const handleMarkDone = (item: PlanItem) => {
-    handleUpdateItem({ ...item, status: 'done' });
+  const handleToggleDone = (item: PlanItem) => {
+    handleUpdateItem({ ...item, status: item.status === 'done' ? 'planned' : 'done' });
   };
 
   const deleteItemWithUndo = (item: PlanItem) => {
@@ -656,13 +687,6 @@ export function WeeklyPlanPage({
     return trimmed;
   };
 
-  const weekSlotCount = studyItems.length;
-  const todaySlotCount = todayStudyItems.length;
-  const nextLabel = nextScheduledItem
-    ? `今日 ${minutesToTimeString(nextScheduledItem.startTime)}〜${minutesToTimeString(
-        nextScheduledItem.startTime + nextScheduledItem.duration,
-      )}（${formatMinutes(nextScheduledItem.duration)}）`
-    : '';
 
   return (
     <AppChrome
@@ -671,269 +695,66 @@ export function WeeklyPlanPage({
     >
       <PageLayout>
         <section className="space-y-4">
-          <Card>
-            <CardContent className="py-3">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Calendar className="w-4 h-4 text-muted-foreground/70" />
-                  <PeriodSelector value={period} onChange={onChangePeriod} mode="week" weekStartsOn={1} />
-                  <span>{formatPeriod(period.start, period.end)}</span>
-                </div>
+          <WeekSummary
+            period={period}
+            onChangePeriod={onChangePeriod}
+            remainingDisplay={remainingDisplay}
+            completionLabel={completionLabel}
+            progressValue={progressValue}
+            doneTotalDisplay={doneTotalDisplay}
+            categorySummary={categorySummary}
+            onNavigateSettings={onNavigateSettings}
+            showTodayToggle={isDesktop}
+            todayPanelOpen={todayPanelOpen}
+            onToggleTodayPanel={() => setTodayPanelOpen((value) => !value)}
+          />
 
-                <div className="flex flex-1 flex-wrap items-center justify-center gap-8 text-xs text-muted-foreground">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]">残り時間</span>
-                    <span className="text-sm font-semibold text-foreground">{remainingDisplay}</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]">進捗</span>
-                    <div className="flex items-center gap-2">
-                      <Progress value={progressValue} className="h-1.5 w-[150px] bg-secondary" />
-                      <span className="text-sm font-semibold text-foreground">{completionLabel}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px]">実績合計</span>
-                    <span className="text-sm font-semibold text-foreground">{doneTotalDisplay}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        詳細
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-64">
-                      <div className="space-y-3">
-                        <div className="text-sm font-semibold text-foreground">実績（内訳）</div>
-                        {categorySummary.length === 0 ? (
-                          <div className="text-xs text-muted-foreground">まだ記録はありません。</div>
-                        ) : (
-                          <div className="space-y-3">
-                            {categorySummary.slice(0, 5).map((entry) => {
-                              const ratio = entry.planned > 0 ? Math.min(1, entry.done / entry.planned) : 0;
-                              const fillClass =
-                                entry.category?.color
-                                  ?.split(' ')
-                                  .find((item) => item.startsWith('bg-')) ?? 'bg-secondary';
-                              const categoryName = normalizeLabel(entry.category?.name) ?? '未分類';
-                              return (
-                                <div key={entry.category?.id ?? categoryName} className="space-y-1">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="outline" className={entry.category?.color ?? ''}>
-                                        {categoryName}
-                                      </Badge>
-                                      <span className="text-muted-foreground">実績 {formatMinutes(entry.done)}</span>
-                                    </div>
-                                    <span className="font-semibold font-mono text-foreground">{formatMinutes(entry.planned)}</span>
-                                  </div>
-                                  <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                                    <div
-                                      className={cn('h-full rounded-full transition-all duration-300', fillClass)}
-                                      style={{ width: `${ratio * 100}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <Button variant="outline" size="sm" onClick={onNavigateSettings}>
-                    生活時間を編集
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setTodayPanelOpen((value) => !value)}
-                    aria-label={todayPanelOpen ? '今日の予定を閉じる' : '今日の予定を開く'}
-                  >
-                    {todayPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold text-foreground">今週の計画</h2>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>空き枠クリックで30分、ドラッグで範囲追加。予定はドラッグで移動・伸縮できます</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-            <div id="weekly-timetable" className="min-w-0 flex-1 space-y-3">
-              <PlanTimeTable
-                items={displayItems}
-                categories={data.categories}
-                materials={data.materials}
-                weekStartDate={period.start}
-                editable={lifestyleReady}
-                allowLifestyleEdit
-                className="h-[calc(100vh-260px)] overflow-auto"
-                onLifestyleEdit={openLifestyleItemDialog}
-                onItemChange={handleUpdateItem}
-                onItemDelete={handleDeleteItemById}
-                onItemClick={(item) => {
-                  setEditingItem(item);
-                  setItemDialogOpen(true);
-                }}
-                onEmptySlotClick={(dayOfWeek, startTime) => {
-                  if (!lifestyleReady) {
-                    setSetupOpen(true);
-                    return;
-                  }
-                  setEditingItem({
-                    weekId,
-                    type: 'study',
-                    dayOfWeek,
-                    startTime,
-                    duration: 30,
-                    status: 'planned',
-                  });
-                  setItemDialogOpen(true);
-                }}
-                onRangeSelect={(dayOfWeek, startTime, duration) => {
-                  if (!lifestyleReady) {
-                    setSetupOpen(true);
-                    return;
-                  }
-                  setEditingItem({
-                    weekId,
-                    type: 'study',
-                    dayOfWeek,
-                    startTime,
-                    duration,
-                    status: 'planned',
-                  });
-                  setItemDialogOpen(true);
-                }}
-              />
-              {studyItems.length === 0 ? (
-                <EmptyState
-                  icon={<Calendar className="w-5 h-5" />}
-                  title="今週の予定がまだありません"
-                  description="まずは学習ブロックを追加して、今週の流れを作りましょう。"
-                  actions={[
-                    { label: '学習ブロックを追加', onClick: openNewItemDialog },
-                    { label: '教材から割り当て', onClick: onNavigateMaterials, variant: 'outline' },
-                  ]}
-                />
-              ) : null}
-            </div>
-
-            <aside
-              className={cn(
-                'flex-shrink-0 overflow-hidden transition-all duration-300 ease-in-out',
-                todayPanelOpen
-                  ? 'w-full lg:w-[340px] opacity-100'
-                  : 'w-0 opacity-0 pointer-events-none max-lg:hidden',
-              )}
-              aria-hidden={!todayPanelOpen}
-            >
-              <div className="h-[calc(100vh-260px)] space-y-4">
-                <div id="weekly-goals">
-                  <GoalsSection
-                    goals={weekGoals}
-                    editable
-                    onGoalChange={handleGoalChange}
-                    onGoalToggle={handleGoalToggle}
-                    onGoalAdd={handleGoalAdd}
-                    onGoalDelete={handleGoalDelete}
-                  />
-                </div>
-                <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/40 bg-foreground text-background">
-                  <div className="sticky top-0 z-10 border-b border-border/30 bg-foreground px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-background/60">今日の予定</p>
-                        <p className="text-sm font-semibold text-background">計画を縦並びで確認できます</p>
-                      </div>
-                      <div className="text-xs text-background/60">
-                        {todaySlotCount}コマ / {formatMinutes(todayPlannedMinutes)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
-                    {todaySchedule.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-border/40 bg-background/5 px-3 py-2 text-xs text-background/70">
-                        今日はまだ予定がありません。タイムテーブルから追加できます。
-                      </div>
-                    ) : (
-                      todaySchedule.map((item) => {
-                        const startLabel = minutesToTimeString(item.startTime);
-                        const endLabel = minutesToTimeString(item.startTime + item.duration);
-                        const category = normalizeLabel(data.categories.find((c) => c.id === item.categoryId)?.name) || '学習';
-                        const material = normalizeLabel(data.materials.find((m) => m.id === item.materialId)?.name);
-                        const title = normalizeLabel(item.label) || material || category;
-                        const isCurrent =
-                          item.status !== 'done' &&
-                          nowMinutes >= item.startTime &&
-                          nowMinutes < item.startTime + item.duration;
-                        const isDone = item.status === 'done';
-                        const cardStyle = isCurrent
-                          ? 'border-primary/60 bg-primary/20 text-background shadow-sm'
-                          : isDone
-                            ? 'border-border/30 bg-background/5 text-background/60'
-                            : 'border-border/30 bg-background/10 text-background/80';
-
-                        return (
-                          <div key={item.id} className={cn('rounded-lg border px-3 py-2 transition', cardStyle)}>
-                            <div className="flex items-center justify-between text-[11px] text-background/60">
-                              <div className="flex items-center gap-1.5">
-                                <Clock className="h-3.5 w-3.5" />
-                                <span className="font-mono">
-                                  {startLabel}-{endLabel}
-                                </span>
-                              </div>
-                              <span>{formatMinutes(item.duration)}</span>
-                            </div>
-                            <div className="mt-1 flex items-center justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium">{title}</div>
-                                <div className="text-[10px] text-background/50">{category}</div>
-                              </div>
-                              {isDone ? (
-                                <span className="text-[10px] text-emerald-300">完了</span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="rounded-full border border-border/30 px-2.5 py-0.5 text-[10px] text-background/70 hover:bg-background/10"
-                                  onClick={() => handleMarkDone(item)}
-                                >
-                                  完了にする
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              </div>
-            </aside>
-          </div>
+          <ScheduleView
+            displayItems={displayItems}
+            studyItems={studyItems}
+            categories={data.categories}
+            materials={data.materials}
+            weekStartDate={period.start}
+            lifestyleReady={lifestyleReady}
+            selectedDay={selectedDay}
+            onSelectDay={setSelectedDay}
+            onSelectSlot={(dayOfWeek, startTime, duration) => {
+              setSelectedDay(dayOfWeek);
+              setLastTouchedTime(startTime);
+              openNewItemSheet(dayOfWeek, startTime, duration ?? 30);
+            }}
+            onEditItem={(item) => {
+              setSelectedDay(item.dayOfWeek);
+              setEditingItem(item);
+              setItemSheetOpen(true);
+            }}
+            onToggleDone={handleToggleDone}
+            onItemChange={handleUpdateItem}
+            onItemDelete={handleDeleteItemById}
+            onOpenNewItem={() => openNewItemSheet()}
+            onNavigateMaterials={onNavigateMaterials}
+            onLifestyleEdit={openLifestyleItemDialog}
+            weekGoals={weekGoals}
+            onGoalChange={handleGoalChange}
+            onGoalToggle={handleGoalToggle}
+            onGoalAdd={handleGoalAdd}
+            onGoalDelete={handleGoalDelete}
+            todayPanelOpen={todayPanelOpen}
+          />
         </section>
       </PageLayout>
 
-      <PlanItemDialog
-        open={itemDialogOpen}
+      <BlockSheet
+        open={itemSheetOpen}
         onOpenChange={(open) => {
-          setItemDialogOpen(open);
+          setItemSheetOpen(open);
           if (!open) setEditingItem(null);
         }}
         categories={data.categories}
         materials={data.materials}
         initial={
           editingItem ?? {
-            dayOfWeek: 0,
+            dayOfWeek: selectedDay,
             startTime: 19 * 60,
             duration: 60,
             status: 'planned',
@@ -942,6 +763,19 @@ export function WeeklyPlanPage({
         defaultCategoryId={data.lastUsedCategoryId ?? data.categories[0]?.id}
         onSave={handleSaveItem}
         onDelete={editingItem?.id ? handleDeleteItem : undefined}
+        onCreateCategory={(name) => {
+          const trimmed = name.trim();
+          if (!trimmed) return null;
+          if (data.categories.some((c) => c.name === trimmed)) {
+            toast.message('同名のカテゴリがすでにあります。');
+            return null;
+          }
+          const usedColors = data.categories.map((c) => c.color);
+          const created = createCategory(trimmed, usedColors);
+          onUpdateData((prev) => ({ ...prev, categories: [...prev.categories, created] }));
+          toast.success('カテゴリを追加しました');
+          return created;
+        }}
       />
 
       <Dialog

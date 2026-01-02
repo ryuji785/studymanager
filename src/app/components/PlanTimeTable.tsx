@@ -522,6 +522,7 @@ export function PlanTimeTable({
 
   const startInteraction = (event: React.PointerEvent, item: PlanItem, mode: DragMode) => {
     if (!editable || (item.type !== 'study' && !allowLifestyleEdit)) return;
+    if (event.pointerType === 'touch') return;
     event.preventDefault();
     event.stopPropagation();
     setSelectedItemId(item.id);
@@ -842,10 +843,6 @@ export function PlanTimeTable({
                           setSelectedItemId(layout.item.id);
                           setContextMenu(null);
                           tableRef.current?.focus();
-                        }}
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          if (Date.now() - lastDragAtRef.current < 200) return;
                           if (isStudy) {
                             onItemClick?.(layout.item);
                             return;

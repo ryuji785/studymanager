@@ -51,4 +51,12 @@
   4. ローカルデータ（LocalStorage）をクラウドへ移行（ワンショット）
      - LocalStorageのデータを読み出し → Supabaseへinsert/upsert → 移行完了後にLocalStorageをクリア
   5. Stripe課金を導入し、`runtime/billing.ts` の参照先をDBのsubscription状態へ（機能制御を追加）
+
+  ## 動作確認（週計画レスポンシブ）
+
+  1. `npm run dev` を起動して `http://localhost:5173` を開く
+  2. 週計画画面で以下を確認
+     - **Mobile (<768px)**: 曜日タブ → カードタップで編集シート、FAB「＋」で追加、完了チェックが即時反映される
+     - **Tablet (768–1023px)**: 左タイムラインのタップで追加シートが開く、右側のカードタップで編集できる
+     - **Desktop (>=1024px)**: 週グリッドで空き枠クリック → 追加、ブロッククリック → 編集ができる
   
