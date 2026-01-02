@@ -59,12 +59,13 @@ export function ScheduleView({
   if (isMobile) {
     return (
       <MobileAgendaView
-        items={studyItems}
+        items={displayItems}
         categories={categories}
         materials={materials}
         selectedDay={selectedDay}
         onSelectDay={onSelectDay}
         onEditItem={onEditItem}
+        onEditLifestyle={onLifestyleEdit}
         onToggleDone={onToggleDone}
         onAddItem={onOpenNewItem}
       />
