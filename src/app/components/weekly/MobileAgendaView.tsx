@@ -2,7 +2,7 @@ import React from 'react';
 import { CalendarDays } from 'lucide-react';
 
 import type { Category, Material, PlanItem } from '../../types';
-import { minutesToTimeString } from '../../utils/time';
+import { formatMinutes, minutesToTimeString } from '../../utils/time';
 import { cn } from '../ui/utils';
 import { PlanItemCard } from './PlanItemCard';
 
@@ -150,7 +150,7 @@ export function MobileAgendaView({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-medium">{formatTimeRange(segment.start, segment.duration)}</div>
-                    <span className={labelClasses}>{Math.round(segment.duration)}min</span>
+                    <span className={labelClasses}>{formatMinutes(segment.duration)}</span>
                   </div>
                   <div className="mt-2 text-[11px] text-indigo-500">空き時間</div>
                 </div>
