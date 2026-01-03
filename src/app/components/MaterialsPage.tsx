@@ -203,6 +203,7 @@ export function MaterialsPage({
   const [reassignCategoryId, setReassignCategoryId] = useState(UNCATEGORIZED_ID);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('deadline');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [focusMaterialIds, setFocusMaterialIds] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set();
     try {
@@ -239,6 +240,7 @@ export function MaterialsPage({
   const filteredMaterials = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const filtered = data.materials.filter((material) => {
+      if (selectedCategoryId !== 'all' && material.categoryId !== selectedCategoryId) return false;
       if (!query) return true;
       const category = categoryById.get(material.categoryId);
       return (
@@ -255,7 +257,7 @@ export function MaterialsPage({
       sorted.sort((a, b) => (a.deadline ?? '9999-12-31').localeCompare(b.deadline ?? '9999-12-31'));
     }
     return sorted;
-  }, [categoryById, data.materials, searchQuery, sortMode]);
+  }, [categoryById, data.materials, searchQuery, selectedCategoryId, sortMode]);
 
   const handleSaveMaterial = (material: Material) => {
     onUpdateData((prev) => {
@@ -386,6 +388,19 @@ export function MaterialsPage({
                     <SelectItem value="deadline">締切が近い順</SelectItem>
                     <SelectItem value="name">教材名（昇順）</SelectItem>
                     <SelectItem value="recent">最近追加</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
+                  <SelectTrigger className="min-w-[180px]">
+                    <SelectValue placeholder="カテゴリで絞り込み" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">すべて</SelectItem>
+                    {data.categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {searchQuery ? (
