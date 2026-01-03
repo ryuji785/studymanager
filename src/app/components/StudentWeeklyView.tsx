@@ -490,7 +490,7 @@ export function StudentWeeklyView({ student, weeklyPlan, weekLabel, onViewHistor
                                   <div className="text-xs text-indigo-700">
                                     {formatTimeRange(segment.start, segment.duration)}
                                   </div>
-                                  <span className={labelClasses}>{Math.round(segment.duration)}min</span>
+                                  <span className={labelClasses}>{formatMinutes(segment.duration)}</span>
                                 </div>
                                 <div className="text-xs text-indigo-500 mt-2">空き時間</div>
                               </div>

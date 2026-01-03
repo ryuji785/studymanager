@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 
 import { ScheduleBlock as ScheduleBlockType } from '../types';
+import { formatMinutes } from '../utils/time';
 import { ScheduleBlock } from './ScheduleBlock';
 
 interface TimeTableGridProps {
@@ -201,7 +202,7 @@ export function TimeTableGrid({ scheduleBlocks, editable = false, onBlockClick, 
                     style={{ top: `${top}px`, height: `${height}px` }}
                   >
                     <div className="h-full w-full rounded-md bg-indigo-100/60 border border-indigo-200/80 shadow-[0_0_8px_rgba(99,102,241,0.35)] flex items-center justify-center text-center">
-                      <span className={labelClasses}>{Math.round(slot.duration)}min</span>
+                      <span className={labelClasses}>{formatMinutes(slot.duration)}</span>
                     </div>
                   </button>
                 );
