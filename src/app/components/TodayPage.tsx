@@ -99,7 +99,12 @@ export function TodayPage({
       .filter((item) => item.weekId === weekId && item.type === 'study' && item.dayOfWeek === todayIndex)
       .sort((a, b) => a.startTime - b.startTime);
   }, [data.planItems, todayIndex, weekId]);
-  const todaySegments = useMemo<TodaySegment[]>(() => buildDaySegments(todayItems), [todayItems]);
+  const todayBlockingItems = useMemo(() => {
+    return data.planItems
+      .filter((item) => item.weekId === weekId && item.dayOfWeek === todayIndex)
+      .sort((a, b) => a.startTime - b.startTime);
+  }, [data.planItems, todayIndex, weekId]);
+  const todaySegments = useMemo<TodaySegment[]>(() => buildDaySegments(todayBlockingItems), [todayBlockingItems]);
 
   const plannedMinutes = todayItems.reduce((sum, item) => sum + item.duration, 0);
   const doneMinutes = todayItems
@@ -269,6 +274,9 @@ export function TodayPage({
               }
 
               const item = segment.item;
+              if (item.type !== 'study') {
+                return null;
+              }
               const startLabel = minutesToTimeString(item.startTime);
               const endLabel = minutesToTimeString(item.startTime + item.duration);
               const category = data.categories.find((c) => c.id === item.categoryId)?.name;
