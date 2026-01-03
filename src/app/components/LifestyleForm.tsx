@@ -76,7 +76,7 @@ export function LifestyleForm({
             <p className="text-xs text-slate-500">平日の睡眠時間は学習可能時間の算出に使います。</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="grid gap-2">
             <Label>開始</Label>
             <Input
@@ -117,7 +117,7 @@ export function LifestyleForm({
           />
         </div>
         {value.weekendEnabled && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label>開始</Label>
               <Input
