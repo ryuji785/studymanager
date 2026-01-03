@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { AppData, Category, Material } from '../types';
@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
@@ -19,16 +20,7 @@ import { EmptyState } from './ui/empty-state';
 import { PageHeader } from './ui/page-header';
 import { PageLayout } from './ui/page-layout';
 import { cn } from './ui/utils';
-
-const CATEGORY_COLOR_POOL = [
-  'bg-blue-50 text-blue-700 border-blue-200',
-  'bg-rose-50 text-rose-700 border-rose-200',
-  'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'bg-violet-50 text-violet-700 border-violet-200',
-  'bg-amber-50 text-amber-700 border-amber-200',
-  'bg-indigo-50 text-indigo-700 border-indigo-200',
-  'bg-slate-50 text-slate-700 border-slate-200',
-];
+import { CATEGORY_COLOR_POOL } from '../utils/categoryColors';
 
 const UNCATEGORIZED_ID = 'uncategorized';
 const MATERIAL_FOCUS_KEY = 'study-manager.materials-focus';
@@ -204,6 +196,8 @@ export function MaterialsPage({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('deadline');
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
+  const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
+  const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
   const [focusMaterialIds, setFocusMaterialIds] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set();
     try {
@@ -222,6 +216,11 @@ export function MaterialsPage({
   }, [focusMaterialIds]);
 
   const categoryById = useMemo(() => new Map(data.categories.map((c) => [c.id, c])), [data.categories]);
+  const orderedCategories = useMemo(() => {
+    const uncategorized = data.categories.find((category) => category.id === UNCATEGORIZED_ID);
+    const regular = data.categories.filter((category) => category.id !== UNCATEGORIZED_ID);
+    return uncategorized ? [...regular, uncategorized] : regular;
+  }, [data.categories]);
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
     data.materials.forEach((material) => {
@@ -300,6 +299,25 @@ export function MaterialsPage({
     onUpdateData((prev) => ({ ...prev, categories: [...prev.categories, created] }));
     toast.success('カテゴリを追加しました');
     return created;
+  };
+
+  const handleReorderCategory = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    if (sourceId === UNCATEGORIZED_ID || targetId === UNCATEGORIZED_ID) return;
+    onUpdateData((prev) => {
+      const regular = prev.categories.filter((category) => category.id !== UNCATEGORIZED_ID);
+      const sourceIndex = regular.findIndex((category) => category.id === sourceId);
+      const targetIndex = regular.findIndex((category) => category.id === targetId);
+      if (sourceIndex === -1 || targetIndex === -1) return prev;
+      const next = [...regular];
+      const [moved] = next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      const uncategorized = prev.categories.find((category) => category.id === UNCATEGORIZED_ID);
+      return {
+        ...prev,
+        categories: uncategorized ? [...next, uncategorized] : next,
+      };
+    });
   };
 
   const openDeleteDialog = (category: Category) => {
@@ -514,41 +532,141 @@ export function MaterialsPage({
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-foreground">カテゴリ管理</CardTitle>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-base font-semibold text-foreground">カテゴリ管理</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  教材と週間計画の両方で使う分類です。ドラッグで順番を並べ替え、名前はクリックしてそのまま編集できます。
+                </p>
+              </div>
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <Input
+                  placeholder="新しいカテゴリ名"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="h-9 sm:w-48"
+                />
+                <Button
+                  variant="outline"
+                  className="h-9"
+                  onClick={() => {
+                    const next = newCategoryName.trim();
+                    if (!next) return;
+                    const created = handleCreateCategory(next);
+                    if (created) setNewCategoryName('');
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  追加
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {data.categories.map((category) => {
-                const isUncategorized = category.id === UNCATEGORIZED_ID;
-                const materialCount = categoryCounts.get(category.id) ?? 0;
-                const planCount = planItemCounts.get(category.id) ?? 0;
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-[24px_32px_minmax(0,1fr)_auto_32px] items-center gap-2 text-[11px] text-muted-foreground">
+                <span />
+                <span>色</span>
+                <span>カテゴリ名</span>
+                <span className="text-right">教材/ブロック</span>
+                <span />
+              </div>
+              <div className="space-y-1">
+                {orderedCategories.map((category) => {
+                  const isUncategorized = category.id === UNCATEGORIZED_ID;
+                  const materialCount = categoryCounts.get(category.id) ?? 0;
+                  const planCount = planItemCounts.get(category.id) ?? 0;
+                  const isDragOver = dragOverCategoryId === category.id;
 
-                return (
-                  <div key={category.id} className="rounded-lg border border-border bg-muted/50 p-3 space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={category.color} variant="outline">
-                          {category.name}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          教材 {materialCount}件 / ブロック {planCount}件
-                        </span>
-                      </div>
-                      {!isUncategorized ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-rose-600"
-                          onClick={() => openDeleteDialog(category)}
-                          aria-label={`${category.name}を削除`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      ) : null}
-                    </div>
+                  return (
+                    <div
+                      key={category.id}
+                      className={cn(
+                        'grid grid-cols-[24px_32px_minmax(0,1fr)_auto_32px] items-center gap-2 rounded-md border px-2 py-2 text-sm',
+                        isDragOver ? 'border-primary/60 bg-primary/5' : 'border-border bg-background',
+                      )}
+                      onDragOver={(event) => {
+                        if (!draggedCategoryId || draggedCategoryId === category.id) return;
+                        event.preventDefault();
+                        setDragOverCategoryId(category.id);
+                      }}
+                      onDragLeave={() => {
+                        if (isDragOver) setDragOverCategoryId(null);
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        if (draggedCategoryId) {
+                          handleReorderCategory(draggedCategoryId, category.id);
+                        }
+                        setDraggedCategoryId(null);
+                        setDragOverCategoryId(null);
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className={cn(
+                          'flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition hover:text-foreground',
+                          isUncategorized ? 'cursor-not-allowed opacity-40' : 'cursor-grab',
+                        )}
+                        draggable={!isUncategorized}
+                        onDragStart={(event) => {
+                          if (isUncategorized) return;
+                          event.dataTransfer.effectAllowed = 'move';
+                          event.dataTransfer.setData('text/plain', category.id);
+                          setDraggedCategoryId(category.id);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedCategoryId(null);
+                          setDragOverCategoryId(null);
+                        }}
+                        aria-label={`${category.name}を並べ替え`}
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </button>
 
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">カテゴリ名</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              'h-6 w-6 rounded-full border border-border transition',
+                              category.color,
+                              isUncategorized ? 'cursor-not-allowed opacity-60' : 'hover:opacity-90',
+                            )}
+                            aria-label="カテゴリ色を変更"
+                            disabled={isUncategorized}
+                          />
+                        </PopoverTrigger>
+                        <PopoverContent className="w-44 p-2" align="start">
+                          <div className="grid grid-cols-4 gap-2">
+                            {CATEGORY_COLOR_POOL.map((color) => {
+                              const isActive = category.color === color;
+                              return (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  className={cn(
+                                    'h-7 w-7 rounded-full border border-border transition',
+                                    color,
+                                    isActive
+                                      ? 'ring-2 ring-primary/60 ring-offset-1 ring-offset-background'
+                                      : 'opacity-80',
+                                  )}
+                                  onClick={() => {
+                                    if (isUncategorized) return;
+                                    onUpdateData((prev) => ({
+                                      ...prev,
+                                      categories: prev.categories.map((c) =>
+                                        c.id === category.id ? { ...c, color } : c,
+                                      ),
+                                    }));
+                                  }}
+                                  aria-label="カテゴリ色を変更"
+                                />
+                              );
+                            })}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+
                       <Input
                         value={category.name}
                         onChange={(e) => {
@@ -561,66 +679,33 @@ export function MaterialsPage({
                           }));
                         }}
                         placeholder="カテゴリ名を編集"
+                        className="h-8"
                         disabled={isUncategorized}
                       />
-                      {isUncategorized ? (
-                        <p className="text-[11px] text-muted-foreground">
-                          未分類は削除できません。削除時の受け皿として使用します。
-                        </p>
-                      ) : null}
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">カテゴリ色</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {CATEGORY_COLOR_POOL.map((color) => {
-                          const isActive = category.color === color;
-                          return (
-                            <button
-                              key={color}
-                              type="button"
-                              className={cn(
-                                'h-7 w-7 rounded-full border border-border transition',
-                                color,
-                                isActive ? 'ring-2 ring-primary/60 ring-offset-1 ring-offset-background' : 'opacity-80',
-                              )}
-                              onClick={() => {
-                                if (isUncategorized) return;
-                                onUpdateData((prev) => ({
-                                  ...prev,
-                                  categories: prev.categories.map((c) =>
-                                    c.id === category.id ? { ...c, color } : c,
-                                  ),
-                                }));
-                              }}
-                              aria-label="カテゴリ色を変更"
-                              title="カテゴリ色を変更"
-                            />
-                          );
-                        })}
-                      </div>
+                      <span className="text-xs text-muted-foreground text-right whitespace-nowrap">
+                        {materialCount} / {planCount}
+                      </span>
+
+                      {!isUncategorized ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-rose-600"
+                          onClick={() => openDeleteDialog(category)}
+                          aria-label={`${category.name}を削除`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <span className="h-8 w-8" aria-hidden="true" />
+                      )}
                     </div>
-                  </div>
-                );
-              })}
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="新しいカテゴリ名"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const next = newCategoryName.trim();
-                    if (!next) return;
-                    const created = handleCreateCategory(next);
-                    if (created) setNewCategoryName('');
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  追加
-                </Button>
+                  );
+                })}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                未分類は削除や並べ替えができません。削除時の受け皿として使用します。
               </div>
             </CardContent>
           </Card>
