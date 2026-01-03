@@ -21,6 +21,12 @@ const SLOT_HEIGHT = 24;
 const GRID_TEMPLATE_COLUMNS = '88px repeat(7, minmax(0, 1fr))';
 const GRID_STYLE = { gridTemplateColumns: GRID_TEMPLATE_COLUMNS } as const;
 
+type EmptySlot = {
+  dayOfWeek: number;
+  start: number;
+  duration: number;
+};
+
 function toDisplayStart(startTime: number) {
   if (startTime >= 1440) return startTime;
   if (startTime < START_MINUTES) return startTime + 1440;
@@ -51,6 +57,57 @@ export function TimeTableGrid({ scheduleBlocks, editable = false, onBlockClick, 
       };
     });
   }, []);
+
+  const availableSlotsByDay = useMemo(() => {
+    const axisStart = START_MINUTES;
+    const axisEnd = START_MINUTES + TOTAL_MINUTES;
+    const byDay = Array.from({ length: DAYS.length }, () => [] as EmptySlot[]);
+
+    DAYS.forEach((_, dayIndex) => {
+      const dayBlocks = scheduleBlocks
+        .filter((block) => block.dayOfWeek === dayIndex)
+        .map((block) => {
+          const start = toDisplayStart(block.startTime);
+          const end = start + block.duration;
+          const clippedStart = Math.max(start, axisStart);
+          const clippedEnd = Math.min(end, axisEnd);
+          return clippedEnd > clippedStart ? { start: clippedStart, end: clippedEnd } : null;
+        })
+        .filter((interval): interval is { start: number; end: number } => interval !== null)
+        .sort((a, b) => (a.start === b.start ? a.end - b.end : a.start - b.start));
+
+      const merged: Array<{ start: number; end: number }> = [];
+      dayBlocks.forEach((interval) => {
+        const last = merged[merged.length - 1];
+        if (!last || interval.start > last.end) {
+          merged.push({ ...interval });
+        } else {
+          last.end = Math.max(last.end, interval.end);
+        }
+      });
+
+      let cursor = axisStart;
+      merged.forEach((interval) => {
+        if (interval.start > cursor) {
+          byDay[dayIndex].push({
+            dayOfWeek: dayIndex,
+            start: cursor,
+            duration: interval.start - cursor,
+          });
+        }
+        cursor = Math.max(cursor, interval.end);
+      });
+      if (cursor < axisEnd) {
+        byDay[dayIndex].push({
+          dayOfWeek: dayIndex,
+          start: cursor,
+          duration: axisEnd - cursor,
+        });
+      }
+    });
+
+    return byDay;
+  }, [scheduleBlocks]);
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg">
@@ -115,6 +172,41 @@ export function TimeTableGrid({ scheduleBlocks, editable = false, onBlockClick, 
                 />
               ))}
 
+              {/* 空き時間ブロック */}
+              {availableSlotsByDay[dayIndex]?.map((slot) => {
+                const top = ((slot.start - START_MINUTES) / SLOT_MINUTES) * SLOT_HEIGHT;
+                const height = (slot.duration / SLOT_MINUTES) * SLOT_HEIGHT;
+                if (height <= 0) return null;
+
+                const isShort = slot.duration < 15;
+                const isNormal = slot.duration >= 30 && slot.duration <= 90;
+                const isLong = slot.duration >= 120;
+
+                const labelClasses = [
+                  'rounded-full px-2 py-0.5 text-[10px]',
+                  isShort ? 'bg-indigo-100/70 text-indigo-400 opacity-70' : '',
+                  isNormal ? 'bg-indigo-200/80 text-indigo-700' : '',
+                  isLong ? 'bg-indigo-300 text-indigo-900 font-semibold shadow-sm' : '',
+                  !isShort && !isNormal && !isLong ? 'bg-indigo-100/80 text-indigo-600' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ');
+
+                return (
+                  <button
+                    key={`${slot.dayOfWeek}-${slot.start}`}
+                    type="button"
+                    onClick={() => onEmptySlotClick?.(slot.dayOfWeek, slot.start)}
+                    className="absolute left-0 right-0 px-2 z-20 bg-transparent border-0 focus:outline-none"
+                    style={{ top: `${top}px`, height: `${height}px` }}
+                  >
+                    <div className="h-full w-full rounded-md bg-indigo-100/60 border border-indigo-200/80 shadow-[0_0_8px_rgba(99,102,241,0.35)] flex items-center justify-center text-center">
+                      <span className={labelClasses}>{Math.round(slot.duration)}min</span>
+                    </div>
+                  </button>
+                );
+              })}
+
               {/* ブロック */}
               {scheduleBlocks
                 .filter((block) => block.dayOfWeek === dayIndex)
@@ -133,10 +225,15 @@ export function TimeTableGrid({ scheduleBlocks, editable = false, onBlockClick, 
                   const height = (clippedDuration / SLOT_MINUTES) * SLOT_HEIGHT;
 
                   return (
-                    <div key={block.id} className="absolute left-0 right-0 px-1" style={{ top: `${top}px` }}>
+                    <div
+                      key={block.id}
+                      className="absolute left-0 right-0 px-1 z-10"
+                      style={{ top: `${top}px` }}
+                    >
                       <ScheduleBlock
                         block={block}
                         height={height}
+                        className="opacity-60 grayscale"
                         onClick={(e) => {
                           e.stopPropagation();
                           onBlockClick?.(block);
