@@ -217,26 +217,26 @@ export function TodayPage({
               </div>
             </CardHeader>
             <CardContent
-              className="relative space-y-2 px-10 pt-1"
+              className="relative space-y-2 px-10 pt-0"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
               {incompleteItems.length > 0 && activeItem ? (
                 <>
-                  <div className="flex items-center justify-end text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      <span className="font-mono">
+                        {minutesToTimeString(activeItem.startTime)}〜
+                        {minutesToTimeString(activeItem.startTime + activeItem.duration)}
+                      </span>
+                      <span>（{formatMinutes(activeItem.duration)}）</span>
+                    </div>
                     {totalIncomplete > 1 ? (
                       <span className="text-[11px]">
                         {activeIndex + 1}/{totalIncomplete}
                       </span>
                     ) : null}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    <span className="font-mono">
-                      {minutesToTimeString(activeItem.startTime)}〜
-                      {minutesToTimeString(activeItem.startTime + activeItem.duration)}
-                    </span>
-                    <span>（{formatMinutes(activeItem.duration)}）</span>
                   </div>
                   <div className="text-sm font-semibold text-foreground">
                     {activeItem.label ??
