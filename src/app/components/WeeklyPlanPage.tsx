@@ -398,12 +398,6 @@ export function WeeklyPlanPage({
   }, [editingLifestyleItem]);
 
   useEffect(() => {
-    if (!isDesktop) {
-      setTodayPanelOpen(false);
-    }
-  }, [isDesktop]);
-
-  useEffect(() => {
     setSelectedDay(todayIndex);
   }, [period.start, todayIndex]);
 
