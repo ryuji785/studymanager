@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 
 import type { AppData, PlanItem } from '../types';
 import { formatMinutes, minutesToTimeString } from '../utils/time';
-import { weekIdFromStart } from '../utils/plan';
+import { getWeekLifestyleItemsFromData, weekIdFromStart } from '../utils/plan';
 import { AppChrome } from './layout/AppChrome';
 import { PageLayout } from './ui/page-layout';
 import { PageHeader } from './ui/page-header';
@@ -100,10 +100,9 @@ export function TodayPage({
       .sort((a, b) => a.startTime - b.startTime);
   }, [data.planItems, todayIndex, weekId]);
   const todayBlockingItems = useMemo(() => {
-    return data.planItems
-      .filter((item) => item.weekId === weekId && item.dayOfWeek === todayIndex)
-      .sort((a, b) => a.startTime - b.startTime);
-  }, [data.planItems, todayIndex, weekId]);
+    const lifestyleItems = getWeekLifestyleItemsFromData(data, weekId).filter((item) => item.dayOfWeek === todayIndex);
+    return [...todayItems, ...lifestyleItems].sort((a, b) => a.startTime - b.startTime);
+  }, [data, todayIndex, todayItems, weekId]);
   const todaySegments = useMemo<TodaySegment[]>(() => buildDaySegments(todayBlockingItems), [todayBlockingItems]);
 
   const plannedMinutes = todayItems.reduce((sum, item) => sum + item.duration, 0);
