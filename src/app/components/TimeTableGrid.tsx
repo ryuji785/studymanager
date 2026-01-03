@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 
 import { ScheduleBlock as ScheduleBlockType } from '../types';
-import { formatMinutes } from '../utils/time';
+import { formatMinutes, normalizeDisplayRange } from '../utils/time';
 import { ScheduleBlock } from './ScheduleBlock';
 
 interface TimeTableGridProps {
@@ -27,12 +27,6 @@ type EmptySlot = {
   start: number;
   duration: number;
 };
-
-function toDisplayStart(startTime: number) {
-  if (startTime >= 1440) return startTime;
-  if (startTime < START_MINUTES) return startTime + 1440;
-  return startTime;
-}
 
 function formatTimeLabel(minutesFromMidnight: number) {
   const h = Math.floor(minutesFromMidnight / 60) % 24;
@@ -68,8 +62,7 @@ export function TimeTableGrid({ scheduleBlocks, editable = false, onBlockClick, 
       const dayBlocks = scheduleBlocks
         .filter((block) => block.dayOfWeek === dayIndex)
         .map((block) => {
-          const start = toDisplayStart(block.startTime);
-          const end = start + block.duration;
+          const { start, end } = normalizeDisplayRange(block.startTime, block.duration, START_MINUTES);
           const clippedStart = Math.max(start, axisStart);
           const clippedEnd = Math.min(end, axisEnd);
           return clippedEnd > clippedStart ? { start: clippedStart, end: clippedEnd } : null;
@@ -212,8 +205,7 @@ export function TimeTableGrid({ scheduleBlocks, editable = false, onBlockClick, 
               {scheduleBlocks
                 .filter((block) => block.dayOfWeek === dayIndex)
                 .map((block) => {
-                  const start = toDisplayStart(block.startTime);
-                  const end = start + block.duration;
+                  const { start, end } = normalizeDisplayRange(block.startTime, block.duration, START_MINUTES);
                   const axisStart = START_MINUTES;
                   const axisEnd = START_MINUTES + TOTAL_MINUTES;
 
