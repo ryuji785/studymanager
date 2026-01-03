@@ -104,32 +104,22 @@ function splitIntoDisplaySegments(startTime: number, duration: number) {
   const safeDuration = Math.max(0, duration);
   if (safeDuration === 0) return [];
 
-  const start = normalizeStart(startTime);
-  const end = start + safeDuration;
-  const segments: Array<{ start: number; end: number }> = [];
+  const normalizedStart = normalizeStart(startTime);
+  const axisStart = START_MINUTES;
+  const axisEnd = START_MINUTES + DAY_MINUTES;
+  const displayStart = normalizedStart < axisStart ? normalizedStart + DAY_MINUTES : normalizedStart;
+  const displayEnd = displayStart + safeDuration;
 
-  if (end <= DAY_MINUTES) {
-    segments.push({ start, end });
-  } else {
-    segments.push({ start, end: DAY_MINUTES });
-    segments.push({ start: 0, end: end - DAY_MINUTES });
+  if (displayEnd <= axisEnd) {
+    return [{ start: displayStart, end: displayEnd }];
   }
 
-  const axisSegments: Array<{ start: number; end: number }> = [];
-  segments.forEach((seg) => {
-    if (seg.end <= START_MINUTES) {
-      axisSegments.push({ start: seg.start + DAY_MINUTES, end: seg.end + DAY_MINUTES });
-      return;
-    }
-    if (seg.start >= START_MINUTES) {
-      axisSegments.push(seg);
-      return;
-    }
-    axisSegments.push({ start: START_MINUTES, end: seg.end });
-    axisSegments.push({ start: seg.start + DAY_MINUTES, end: START_MINUTES + DAY_MINUTES });
-  });
-
-  return axisSegments;
+  const overflow = displayEnd - axisEnd;
+  const wrappedEnd = Math.min(axisStart + overflow, axisEnd);
+  return [
+    { start: displayStart, end: axisEnd },
+    { start: axisStart, end: wrappedEnd },
+  ];
 }
 
 function buildSegments(item: PlanItem): Segment[] {
