@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock, NotebookPen } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, NotebookPen } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -11,7 +11,7 @@ import { PageLayout } from './ui/page-layout';
 import { PageHeader } from './ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { EmptyState } from './ui/empty-state';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
@@ -112,22 +112,27 @@ export function TodayPage({
   const currentItem = incompleteItems.find(
     (item) => nowMinutes >= item.startTime && nowMinutes < item.startTime + item.duration,
   );
-  const nextFutureItem = incompleteItems
-    .filter((item) => item.startTime > nowMinutes)
-    .sort((a, b) => a.startTime - b.startTime)[0];
   const overdueItems = incompleteItems
     .filter((item) => item.startTime + item.duration <= nowMinutes)
     .sort((a, b) => a.startTime - b.startTime);
-  const overdueItem = [...overdueItems].sort((a, b) => b.startTime - a.startTime)[0];
-  const nextItem = currentItem ?? nextFutureItem ?? overdueItem ?? incompleteItems[0];
-  const overdueCount = overdueItems.length;
-  const overdueFirstItem = overdueItems[0];
-  const [showOverdue, setShowOverdue] = useState(false);
+  const orderedIncompleteItems = [
+    ...(currentItem ? [currentItem] : []),
+    ...incompleteItems.filter((item) => item.startTime > nowMinutes).sort((a, b) => a.startTime - b.startTime),
+    ...overdueItems,
+  ].filter((item, index, self) => self.findIndex((target) => target.id === item.id) === index);
+  const [activeIndex, setActiveIndex] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const [detailItem, setDetailItem] = useState<PlanItem | null>(null);
 
-  const activeItem = showOverdue && overdueFirstItem ? overdueFirstItem : nextItem;
-  const activeLabel = showOverdue && overdueFirstItem ? '過去の未完了' : '次にやる';
+  const activeItem = orderedIncompleteItems[activeIndex];
+  const totalIncomplete = orderedIncompleteItems.length;
+  const activeLabel = activeItem
+    ? nowMinutes >= activeItem.startTime && nowMinutes < activeItem.startTime + activeItem.duration
+      ? '今やる'
+      : activeItem.startTime > nowMinutes
+        ? '次にやる'
+        : '過去の未完了'
+    : '次にやる';
 
   const handleMarkDone = (item: PlanItem) => {
     onUpdateData((prev) => ({
@@ -142,21 +147,22 @@ export function TodayPage({
   const dateLabel = format(new Date(), 'yyyy/MM/dd');
   const dayLabel = DAYS[todayIndex] ?? '';
   useEffect(() => {
-    if (overdueCount === 0) {
-      setShowOverdue(false);
-    }
-  }, [overdueCount]);
+    setActiveIndex((prev) => Math.min(prev, Math.max(0, orderedIncompleteItems.length - 1)));
+  }, [orderedIncompleteItems.length]);
 
   const handleTouchStart = (event: React.TouchEvent) => {
     touchStartX.current = event.touches[0]?.clientX ?? null;
   };
 
   const handleTouchEnd = (event: React.TouchEvent) => {
-    if (touchStartX.current === null || overdueCount === 0) return;
+    if (touchStartX.current === null || totalIncomplete <= 1) return;
     const endX = event.changedTouches[0]?.clientX ?? touchStartX.current;
     const deltaX = endX - touchStartX.current;
     if (Math.abs(deltaX) > 40) {
-      setShowOverdue(deltaX < 0);
+      setActiveIndex((prev) => {
+        const nextIndex = deltaX < 0 ? prev + 1 : prev - 1;
+        return Math.min(Math.max(nextIndex, 0), totalIncomplete - 1);
+      });
     }
     touchStartX.current = null;
   };
@@ -221,7 +227,11 @@ export function TodayPage({
                     className="flex items-center justify-between gap-2 text-xs text-muted-foreground"
                   >
                     <span className="font-medium text-muted-foreground">{activeLabel}</span>
-                    {overdueCount > 0 ? <span className="text-[11px]">左右にスワイプで切替</span> : null}
+                    {totalIncomplete > 1 ? (
+                      <span className="text-[11px]">
+                        {activeIndex + 1}/{totalIncomplete}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Clock className="w-4 h-4" />
@@ -249,8 +259,10 @@ export function TodayPage({
                     <Button variant="outline" size="sm" onClick={() => handleMarkDone(activeItem)}>
                       完了にする
                     </Button>
-                    {overdueCount > 0 ? (
-                      <span className="text-[11px] text-muted-foreground">過去の未完了 {overdueCount}件</span>
+                    {totalIncomplete > 1 ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        未完了 {activeIndex + 1}/{totalIncomplete}
+                      </span>
                     ) : null}
                   </div>
                 </>
@@ -284,25 +296,27 @@ export function TodayPage({
                 </div>
               )}
             </CardContent>
-            {overdueCount > 0 ? (
+            {totalIncomplete > 1 ? (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label="過去の未完了を表示"
+                  aria-label="前の未完了を表示"
                   className="absolute left-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
-                  onClick={() => setShowOverdue(true)}
+                  onClick={() => setActiveIndex((prev) => Math.max(prev - 1, 0))}
+                  disabled={activeIndex === 0}
                 >
-                  <ChevronLeft className="h-5 w-5" />
+                  <span className="text-lg font-semibold">&lt;</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label="次にやるを表示"
+                  aria-label="次の未完了を表示"
                   className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
-                  onClick={() => setShowOverdue(false)}
+                  onClick={() => setActiveIndex((prev) => Math.min(prev + 1, totalIncomplete - 1))}
+                  disabled={activeIndex >= totalIncomplete - 1}
                 >
-                  <ChevronRight className="h-5 w-5" />
+                  <span className="text-lg font-semibold">&gt;</span>
                 </Button>
               </>
             ) : null}
@@ -439,6 +453,17 @@ export function TodayPage({
               </div>
             </div>
           ) : null}
+          <DialogFooter>
+            {detailItem ? (
+              <Button
+                onClick={() => handleMarkDone(detailItem)}
+                disabled={detailItem.status === 'done'}
+                variant={detailItem.status === 'done' ? 'secondary' : 'default'}
+              >
+                {detailItem.status === 'done' ? '完了済み' : '完了にする'}
+              </Button>
+            ) : null}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppChrome>
