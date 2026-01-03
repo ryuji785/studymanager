@@ -654,11 +654,12 @@ export function PlanTimeTable({
       className={cn(
         'bg-white border border-slate-100 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200',
         className,
+        'flex flex-col overflow-hidden',
       )}
     >
       <div
-        className="grid border-b border-slate-100 bg-slate-50 sticky z-10 rounded-t-2xl"
-        style={{ ...GRID_STYLE, top: 0 }}
+        className="grid border-b border-slate-100 bg-slate-50 rounded-t-2xl"
+        style={GRID_STYLE}
       >
         <div className="border-r border-slate-100 p-2 text-center text-sm text-slate-700">時刻</div>
         {DAYS.map((day, index) => {
@@ -682,8 +683,9 @@ export function PlanTimeTable({
         })}
       </div>
 
-      <div className={cn('relative overflow-hidden', editable ? '' : 'rounded-b-lg')}>
-        <div className="grid" style={GRID_STYLE}>
+      <div className="flex-1 min-h-0 overflow-auto">
+        <div className={cn('relative overflow-hidden', editable ? '' : 'rounded-b-lg')}>
+          <div className="grid" style={GRID_STYLE}>
           <div className="border-r border-slate-100 bg-slate-50">
             {slots.map((slot) => (
               <div
@@ -867,6 +869,7 @@ export function PlanTimeTable({
               </div>
             );
           })}
+          </div>
         </div>
       </div>
       {contextMenu ? (
