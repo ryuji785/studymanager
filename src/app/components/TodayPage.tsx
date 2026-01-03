@@ -295,31 +295,31 @@ export function TodayPage({
                   </div>
                 </div>
               )}
+              {totalIncomplete > 1 ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="前の未完了を表示"
+                    className="absolute left-3 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
+                    onClick={() => setActiveIndex((prev) => Math.max(prev - 1, 0))}
+                    disabled={activeIndex === 0}
+                  >
+                    <span className="text-lg font-semibold">&lt;</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="次の未完了を表示"
+                    className="absolute right-3 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
+                    onClick={() => setActiveIndex((prev) => Math.min(prev + 1, totalIncomplete - 1))}
+                    disabled={activeIndex >= totalIncomplete - 1}
+                  >
+                    <span className="text-lg font-semibold">&gt;</span>
+                  </Button>
+                </>
+              ) : null}
             </CardContent>
-            {totalIncomplete > 1 ? (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="前の未完了を表示"
-                  className="absolute left-3 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
-                  onClick={() => setActiveIndex((prev) => Math.max(prev - 1, 0))}
-                  disabled={activeIndex === 0}
-                >
-                  <span className="text-lg font-semibold">&lt;</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="次の未完了を表示"
-                  className="absolute right-3 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
-                  onClick={() => setActiveIndex((prev) => Math.min(prev + 1, totalIncomplete - 1))}
-                  disabled={activeIndex >= totalIncomplete - 1}
-                >
-                  <span className="text-lg font-semibold">&gt;</span>
-                </Button>
-              </>
-            ) : null}
           </Card>
         </div>
 
