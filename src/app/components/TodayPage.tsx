@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Calendar, CheckCircle2, Clock } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -99,6 +99,7 @@ export function TodayPage({
   const todaySegments = useMemo<TodaySegment[]>(() => buildDaySegments(todayBlockingItems), [todayBlockingItems]);
 
   const plannedMinutes = todayItems.reduce((sum, item) => sum + item.duration, 0);
+  const doneItems = useMemo(() => todayItems.filter((item) => item.status === 'done'), [todayItems]);
   const doneMinutes = todayItems
     .filter((item) => item.status === 'done')
     .reduce((sum, item) => sum + (item.actualDuration ?? item.duration), 0);
@@ -106,15 +107,25 @@ export function TodayPage({
 
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const currentItem = todayItems.find(
-    (item) =>
-      item.status !== 'done' && nowMinutes >= item.startTime && nowMinutes < item.startTime + item.duration,
+  const incompleteItems = useMemo(() => todayItems.filter((item) => item.status !== 'done'), [todayItems]);
+  const currentItem = incompleteItems.find(
+    (item) => nowMinutes >= item.startTime && nowMinutes < item.startTime + item.duration,
   );
-  const nextItem =
-    currentItem ??
-    todayItems
-      .filter((item) => item.status !== 'done' && item.startTime >= nowMinutes)
-      .sort((a, b) => a.startTime - b.startTime)[0];
+  const nextFutureItem = incompleteItems
+    .filter((item) => item.startTime > nowMinutes)
+    .sort((a, b) => a.startTime - b.startTime)[0];
+  const overdueItems = incompleteItems
+    .filter((item) => item.startTime + item.duration <= nowMinutes)
+    .sort((a, b) => a.startTime - b.startTime);
+  const overdueItem = [...overdueItems].sort((a, b) => b.startTime - a.startTime)[0];
+  const nextItem = currentItem ?? nextFutureItem ?? overdueItem ?? incompleteItems[0];
+  const overdueCount = overdueItems.length;
+  const overdueFirstItem = overdueItems[0];
+  const [showOverdue, setShowOverdue] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+
+  const activeItem = showOverdue && overdueFirstItem ? overdueFirstItem : nextItem;
+  const activeLabel = showOverdue && overdueFirstItem ? '過去の未完了' : '次にやる';
 
   const handleMarkDone = (item: PlanItem) => {
     onUpdateData((prev) => ({
@@ -128,6 +139,49 @@ export function TodayPage({
 
   const dateLabel = format(new Date(), 'yyyy/MM/dd');
   const dayLabel = DAYS[todayIndex] ?? '';
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (overdueCount === 0) {
+      setShowOverdue(false);
+    }
+  }, [overdueCount]);
+
+  const focusItem = (itemId: string | undefined) => {
+    if (!itemId) return;
+    const target = itemRefs.current[itemId];
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedId(itemId);
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+    }
+    highlightTimerRef.current = setTimeout(() => setHighlightedId(null), 2000);
+  };
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    touchStartX.current = event.touches[0]?.clientX ?? null;
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent) => {
+    if (touchStartX.current === null || overdueCount === 0) return;
+    const endX = event.changedTouches[0]?.clientX ?? touchStartX.current;
+    const deltaX = endX - touchStartX.current;
+    if (Math.abs(deltaX) > 40) {
+      setShowOverdue(deltaX < 0);
+    }
+    touchStartX.current = null;
+  };
 
   return (
     <AppChrome title="今日の予定" actions={null}>
@@ -169,52 +223,106 @@ export function TodayPage({
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-muted-foreground">次にやる</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-sm font-semibold text-muted-foreground">次にやる</CardTitle>
+                {incompleteItems.length > 0 ? (
+                  <Badge variant="secondary" className="text-[11px]">
+                    未完了 {incompleteItems.length}件
+                  </Badge>
+                ) : null}
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {nextItem ? (
+              {incompleteItems.length > 0 && activeItem ? (
                 <>
+                  <div
+                    className="flex items-center justify-between gap-2 text-xs text-muted-foreground"
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                  >
+                    <span className="font-medium text-muted-foreground">{activeLabel}</span>
+                    {overdueCount > 0 ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="過去の未完了を表示"
+                          className="h-7 w-7"
+                          onClick={() => setShowOverdue(true)}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="次にやるを表示"
+                          className="h-7 w-7"
+                          onClick={() => setShowOverdue(false)}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Clock className="w-4 h-4" />
                     <span className="font-mono">
-                      {minutesToTimeString(nextItem.startTime)}〜
-                      {minutesToTimeString(nextItem.startTime + nextItem.duration)}
+                      {minutesToTimeString(activeItem.startTime)}〜
+                      {minutesToTimeString(activeItem.startTime + activeItem.duration)}
                     </span>
-                    <span>（{formatMinutes(nextItem.duration)}）</span>
+                    <span>（{formatMinutes(activeItem.duration)}）</span>
                   </div>
                   <div className="text-sm font-semibold text-foreground">
-                    {nextItem.label ??
-                      data.materials.find((m) => m.id === nextItem.materialId)?.name ??
-                      data.categories.find((c) => c.id === nextItem.categoryId)?.name ??
+                    {activeItem.label ??
+                      data.materials.find((m) => m.id === activeItem.materialId)?.name ??
+                      data.categories.find((c) => c.id === activeItem.categoryId)?.name ??
                       '学習'}
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>
                       カテゴリ：
-                      {data.categories.find((c) => c.id === nextItem.categoryId)?.name ?? '未設定'}
+                      {data.categories.find((c) => c.id === activeItem.categoryId)?.name ?? '未設定'}
                     </span>
                     <span>・</span>
-                    <span>所要 {formatMinutes(nextItem.duration)}</span>
+                    <span>所要 {formatMinutes(activeItem.duration)}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {nextItem.status === 'done' ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
-                        <CheckCircle2 className="w-4 h-4" />
-                        完了済み
-                      </span>
-                    ) : (
-                      <Button size="sm" onClick={() => handleMarkDone(nextItem)}>
-                        完了にする
-                      </Button>
-                    )}
+                    <Button size="sm" onClick={() => focusItem(activeItem.id)}>
+                      この予定へ
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleMarkDone(activeItem)}>
+                      完了にする
+                    </Button>
+                    {overdueCount > 0 ? (
+                      <span className="text-[11px] text-muted-foreground">過去の未完了 {overdueCount}件</span>
+                    ) : null}
                   </div>
                 </>
-              ) : (
+              ) : todayItems.length > 0 ? (
                 <div className="rounded-lg border border-dashed border-border bg-muted px-3 py-3 text-xs text-muted-foreground">
-                  今日の予定は完了しています。次の予定は週計画で追加できます。
-                  <div className="mt-2">
+                  <div className="flex items-center gap-2 text-sm text-emerald-600">
+                    <CheckCircle2 className="w-4 h-4" />
+                    今日の予定は完了しました
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    完了 {doneItems.length}/{todayItems.length}・実績{' '}
+                    {doneMinutes === 0 ? '未記録' : formatMinutes(doneMinutes)}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={onNavigateWeekly}>
                       今週の計画へ
+                    </Button>
+                    <Button size="sm" onClick={onNavigateWeekly}>
+                      今週に追加する
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-border bg-muted px-3 py-3 text-xs text-muted-foreground">
+                  今日は予定がありません。
+                  <div className="mt-2">
+                    <Button size="sm" onClick={onNavigateWeekly}>
+                      今日に予定を追加
                     </Button>
                   </div>
                 </div>
@@ -276,7 +384,18 @@ export function TodayPage({
               const title = item.label ?? material ?? category ?? '学習';
 
               return (
-                <Card key={item.id}>
+                <div
+                  key={item.id}
+                  ref={(node) => {
+                    itemRefs.current[item.id] = node;
+                  }}
+                  className={
+                    highlightedId === item.id
+                      ? 'rounded-xl ring-2 ring-indigo-400/70 ring-offset-2 ring-offset-background transition'
+                      : ''
+                  }
+                >
+                  <Card>
                   <CardContent className="py-4 flex flex-wrap items-center gap-3">
                     <div className="min-w-[140px] text-sm font-mono text-muted-foreground">
                       {startLabel} - {endLabel}
@@ -295,7 +414,8 @@ export function TodayPage({
                       </Button>
                     )}
                   </CardContent>
-                </Card>
+                  </Card>
+                </div>
               );
             })}
           </div>
