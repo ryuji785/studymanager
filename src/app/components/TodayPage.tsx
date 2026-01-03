@@ -217,7 +217,7 @@ export function TodayPage({
               </div>
             </CardHeader>
             <CardContent
-              className="relative space-y-3 px-10 pt-3"
+              className="relative space-y-2 px-10 pt-1"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
