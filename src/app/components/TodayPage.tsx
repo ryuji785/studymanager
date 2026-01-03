@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Clock, NotebookPen } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -11,6 +11,7 @@ import { PageLayout } from './ui/page-layout';
 import { PageHeader } from './ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { EmptyState } from './ui/empty-state';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
@@ -123,6 +124,7 @@ export function TodayPage({
   const overdueFirstItem = overdueItems[0];
   const [showOverdue, setShowOverdue] = useState(false);
   const touchStartX = useRef<number | null>(null);
+  const [detailItem, setDetailItem] = useState<PlanItem | null>(null);
 
   const activeItem = showOverdue && overdueFirstItem ? overdueFirstItem : nextItem;
   const activeLabel = showOverdue && overdueFirstItem ? '過去の未完了' : '次にやる';
@@ -139,35 +141,11 @@ export function TodayPage({
 
   const dateLabel = format(new Date(), 'yyyy/MM/dd');
   const dayLabel = DAYS[todayIndex] ?? '';
-  const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  useEffect(() => {
-    return () => {
-      if (highlightTimerRef.current) {
-        clearTimeout(highlightTimerRef.current);
-      }
-    };
-  }, []);
-
   useEffect(() => {
     if (overdueCount === 0) {
       setShowOverdue(false);
     }
   }, [overdueCount]);
-
-  const focusItem = (itemId: string | undefined) => {
-    if (!itemId) return;
-    const target = itemRefs.current[itemId];
-    if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setHighlightedId(itemId);
-    if (highlightTimerRef.current) {
-      clearTimeout(highlightTimerRef.current);
-    }
-    highlightTimerRef.current = setTimeout(() => setHighlightedId(null), 2000);
-  };
 
   const handleTouchStart = (event: React.TouchEvent) => {
     touchStartX.current = event.touches[0]?.clientX ?? null;
@@ -193,7 +171,7 @@ export function TodayPage({
         />
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
+          <Card className="relative">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold text-muted-foreground">今日の進捗</CardTitle>
             </CardHeader>
@@ -232,37 +210,18 @@ export function TodayPage({
                 ) : null}
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent
+              className="relative space-y-3 px-10"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               {incompleteItems.length > 0 && activeItem ? (
                 <>
                   <div
                     className="flex items-center justify-between gap-2 text-xs text-muted-foreground"
-                    onTouchStart={handleTouchStart}
-                    onTouchEnd={handleTouchEnd}
                   >
                     <span className="font-medium text-muted-foreground">{activeLabel}</span>
-                    {overdueCount > 0 ? (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="過去の未完了を表示"
-                          className="h-7 w-7"
-                          onClick={() => setShowOverdue(true)}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="次にやるを表示"
-                          className="h-7 w-7"
-                          onClick={() => setShowOverdue(false)}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : null}
+                    {overdueCount > 0 ? <span className="text-[11px]">左右にスワイプで切替</span> : null}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Clock className="w-4 h-4" />
@@ -287,9 +246,6 @@ export function TodayPage({
                     <span>所要 {formatMinutes(activeItem.duration)}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button size="sm" onClick={() => focusItem(activeItem.id)}>
-                      この予定へ
-                    </Button>
                     <Button variant="outline" size="sm" onClick={() => handleMarkDone(activeItem)}>
                       完了にする
                     </Button>
@@ -328,6 +284,28 @@ export function TodayPage({
                 </div>
               )}
             </CardContent>
+            {overdueCount > 0 ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="過去の未完了を表示"
+                  className="absolute left-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
+                  onClick={() => setShowOverdue(true)}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="次にやるを表示"
+                  className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
+                  onClick={() => setShowOverdue(false)}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </>
+            ) : null}
           </Card>
         </div>
 
@@ -384,19 +362,9 @@ export function TodayPage({
               const title = item.label ?? material ?? category ?? '学習';
 
               return (
-                <div
-                  key={item.id}
-                  ref={(node) => {
-                    itemRefs.current[item.id] = node;
-                  }}
-                  className={
-                    highlightedId === item.id
-                      ? 'rounded-xl ring-2 ring-indigo-400/70 ring-offset-2 ring-offset-background transition'
-                      : ''
-                  }
-                >
-                  <Card>
-                  <CardContent className="py-4 flex flex-wrap items-center gap-3">
+                <div key={item.id}>
+                  <Card className="cursor-pointer" onClick={() => setDetailItem(item)}>
+                    <CardContent className="py-4 flex flex-wrap items-center gap-3">
                     <div className="min-w-[140px] text-sm font-mono text-muted-foreground">
                       {startLabel} - {endLabel}
                     </div>
@@ -409,7 +377,14 @@ export function TodayPage({
                     {item.status === 'done' ? (
                       <span className="text-xs text-emerald-600 font-medium">完了</span>
                     ) : (
-                      <Button variant="outline" size="sm" onClick={() => handleMarkDone(item)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleMarkDone(item);
+                        }}
+                      >
                         完了にする
                       </Button>
                     )}
@@ -421,6 +396,51 @@ export function TodayPage({
           </div>
         )}
       </PageLayout>
+
+      <Dialog open={Boolean(detailItem)} onOpenChange={(open) => (!open ? setDetailItem(null) : null)}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>実施内容</DialogTitle>
+          </DialogHeader>
+          {detailItem ? (
+            <div className="space-y-4 text-sm">
+              <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                {minutesToTimeString(detailItem.startTime)}〜
+                {minutesToTimeString(detailItem.startTime + detailItem.duration)} ・{' '}
+                {formatMinutes(detailItem.duration)}
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">タイトル</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {detailItem.label ??
+                    data.materials.find((m) => m.id === detailItem.materialId)?.name ??
+                    data.categories.find((c) => c.id === detailItem.categoryId)?.name ??
+                    '学習'}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">カテゴリ</p>
+                <p>{data.categories.find((c) => c.id === detailItem.categoryId)?.name ?? '未設定'}</p>
+              </div>
+              {detailItem.materialId ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">教材</p>
+                  <p>{data.materials.find((m) => m.id === detailItem.materialId)?.name ?? '-'}</p>
+                </div>
+              ) : null}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <NotebookPen className="h-4 w-4" />
+                  <span>実施内容</span>
+                </div>
+                <div className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground whitespace-pre-wrap">
+                  {detailItem.notes?.trim() || '記録はまだありません。'}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </AppChrome>
   );
 }
