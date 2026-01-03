@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Calendar, ChevronDown, ChevronUp, History, Lock } from 'lucide-react';
 
-import { Student, WeeklyPlan } from '../types';
+import { ScheduleBlock, Student, WeeklyPlan } from '../types';
 import { GoalsSection } from './GoalsSection';
 import { TimeTableGrid } from './TimeTableGrid';
 import { SubjectTargets } from './SubjectTargets';
@@ -29,6 +29,8 @@ export function StudentWeeklyView({ student, weeklyPlan, weekLabel, onViewHistor
   const [calendarMode, setCalendarMode] = useState<'weekly' | 'daily'>('weekly');
 
   const DAYS = ['月', '火', '水', '木', '金', '土', '日'];
+  const START_MINUTES = 6 * 60;
+  const TOTAL_MINUTES = 24 * 60;
 
   const getDayBlocks = (dayIndex: number) => {
     return weeklyPlan?.scheduleBlocks.filter((block) => block.dayOfWeek === dayIndex) ?? [];
@@ -103,6 +105,57 @@ export function StudentWeeklyView({ student, weeklyPlan, weekLabel, onViewHistor
     };
     const endTime = startTime + duration;
     return `${fmt(startTime)}〜${fmt(endTime)}`;
+  };
+
+  const toDisplayStart = (startTime: number) => {
+    if (startTime >= 1440) return startTime;
+    if (startTime < START_MINUTES) return startTime + 1440;
+    return startTime;
+  };
+
+  const getDaySegments = (dayIndex: number) => {
+    const axisStart = START_MINUTES;
+    const axisEnd = START_MINUTES + TOTAL_MINUTES;
+    const dayBlocks = getDayBlocks(dayIndex)
+      .map((block) => {
+        const displayStart = toDisplayStart(block.startTime);
+        const displayEnd = displayStart + block.duration;
+        const clippedStart = Math.max(displayStart, axisStart);
+        const clippedEnd = Math.min(displayEnd, axisEnd);
+        if (clippedEnd <= clippedStart) return null;
+        return { block, displayStart: clippedStart, displayEnd: clippedEnd };
+      })
+      .filter((entry): entry is { block: ScheduleBlock; displayStart: number; displayEnd: number } => entry !== null)
+      .sort((a, b) => (a.displayStart === b.displayStart ? a.displayEnd - b.displayEnd : a.displayStart - b.displayStart));
+
+    const merged: Array<{ start: number; end: number }> = [];
+    dayBlocks.forEach((entry) => {
+      const last = merged[merged.length - 1];
+      if (!last || entry.displayStart > last.end) {
+        merged.push({ start: entry.displayStart, end: entry.displayEnd });
+      } else {
+        last.end = Math.max(last.end, entry.displayEnd);
+      }
+    });
+
+    const gaps: Array<{ start: number; duration: number }> = [];
+    let cursor = axisStart;
+    merged.forEach((interval) => {
+      if (interval.start > cursor) {
+        gaps.push({ start: cursor, duration: interval.start - cursor });
+      }
+      cursor = Math.max(cursor, interval.end);
+    });
+    if (cursor < axisEnd) {
+      gaps.push({ start: cursor, duration: axisEnd - cursor });
+    }
+
+    const segments = [
+      ...dayBlocks.map((entry) => ({ kind: 'block' as const, start: entry.displayStart, block: entry.block })),
+      ...gaps.map((gap) => ({ kind: 'gap' as const, start: gap.start, duration: gap.duration })),
+    ].sort((a, b) => a.start - b.start);
+
+    return segments;
   };
 
   const chromeBack = onBackToTeacher ? { label: '週計画に戻る', onClick: onBackToTeacher } : undefined;
@@ -410,29 +463,58 @@ export function StudentWeeklyView({ student, weeklyPlan, weekLabel, onViewHistor
                       <div className="rounded-lg border border-gray-200 bg-white p-3">
                         {renderDisposableSummary(dayIndex)}
                       </div>
-                      {getDayBlocks(dayIndex).length === 0 ? (
-                        <p className="text-center text-gray-500 py-8 text-sm">予定なし</p>
-                      ) : (
-                        getDayBlocks(dayIndex)
-                          .sort((a, b) => a.startTime - b.startTime)
-                          .map((block) => {
+                      {(() => {
+                        const segments = getDaySegments(dayIndex);
+                        if (segments.length === 0) {
+                          return <p className="text-center text-gray-500 py-8 text-sm">予定なし</p>;
+                        }
+                        return segments.map((segment, index) => {
+                          if (segment.kind === 'gap') {
+                            const isShort = segment.duration < 15;
+                            const isNormal = segment.duration >= 30 && segment.duration <= 90;
+                            const isLong = segment.duration >= 120;
+
+                            const labelClasses = [
+                              'rounded-full px-2 py-0.5 text-[10px]',
+                              isShort ? 'bg-indigo-100/70 text-indigo-400 opacity-70' : '',
+                              isNormal ? 'bg-indigo-200/80 text-indigo-700' : '',
+                              isLong ? 'bg-indigo-300 text-indigo-900 font-semibold shadow-sm' : '',
+                              !isShort && !isNormal && !isLong ? 'bg-indigo-100/80 text-indigo-600' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ');
+
                             return (
-                              <div key={block.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                                <div className="flex items-start justify-between mb-2">
-                                  <div>
-                                    <div className="text-xs text-gray-500 mb-1">
-                                      {formatTimeRange(block.startTime, block.duration)}
-                                    </div>
-                                    <div className="text-sm text-gray-800">{block.label}</div>
+                              <div key={`gap-${segment.start}-${index}`} className="border border-indigo-200 rounded-lg p-3 bg-indigo-50/60">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-xs text-indigo-700">
+                                    {formatTimeRange(segment.start, segment.duration)}
                                   </div>
-                                  <div className="text-xs text-gray-600 whitespace-nowrap">
-                                    {block.status === 'completed' ? '完了' : block.status === 'incomplete' ? '未完了' : '予定'}
-                                  </div>
+                                  <span className={labelClasses}>{Math.round(segment.duration)}min</span>
                                 </div>
+                                <div className="text-xs text-indigo-500 mt-2">空き時間</div>
                               </div>
                             );
-                          })
-                      )}
+                          }
+
+                          const block = segment.block;
+                          return (
+                            <div key={block.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <div className="text-xs text-gray-500 mb-1">
+                                    {formatTimeRange(block.startTime, block.duration)}
+                                  </div>
+                                  <div className="text-sm text-gray-800">{block.label}</div>
+                                </div>
+                                <div className="text-xs text-gray-600 whitespace-nowrap">
+                                  {block.status === 'completed' ? '完了' : block.status === 'incomplete' ? '未完了' : '予定'}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
                   </TabsContent>
                 ))}
