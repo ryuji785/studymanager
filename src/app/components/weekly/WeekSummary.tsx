@@ -2,7 +2,6 @@ import React from 'react';
 import { Calendar, PanelRightClose, PanelRightOpen } from 'lucide-react';
 
 import type { Category } from '../../types';
-import { formatPeriod } from '../../utils/date';
 import { formatMinutes } from '../../utils/time';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -58,7 +57,6 @@ export function WeekSummary({
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Calendar className="w-4 h-4 text-muted-foreground/70" />
             <PeriodSelector value={period} onChange={onChangePeriod} mode="week" weekStartsOn={1} />
-            <span>{formatPeriod(period.start, period.end)}</span>
           </div>
 
           <div className="flex flex-1 flex-wrap items-center justify-center gap-8 text-xs text-muted-foreground">
