@@ -4,8 +4,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 import type { AppData, PlanItem } from '../types';
-import { formatMinutes, minutesToTimeString } from '../utils/time';
-import { weekIdFromStart } from '../utils/plan';
+import { formatMinutes, minutesToTimeString, normalizeDisplayRange } from '../utils/time';
+import { getWeekLifestyleItemsFromData, weekIdFromStart } from '../utils/plan';
 import { AppChrome } from './layout/AppChrome';
 import { PageLayout } from './ui/page-layout';
 import { PageHeader } from './ui/page-header';
@@ -23,12 +23,6 @@ type TodaySegment =
   | { kind: 'item'; start: number; item: PlanItem }
   | { kind: 'gap'; start: number; duration: number };
 
-function toDisplayStart(startTime: number) {
-  if (startTime >= 1440) return startTime;
-  if (startTime < START_MINUTES) return startTime + 1440;
-  return startTime;
-}
-
 function formatTimeRange(startTime: number, duration: number) {
   const endTime = startTime + duration;
   return `${minutesToTimeString(startTime)}〜${minutesToTimeString(endTime)}`;
@@ -39,8 +33,7 @@ function buildDaySegments(dayItems: PlanItem[]) {
   const axisEnd = START_MINUTES + TOTAL_MINUTES;
   const entries = dayItems
     .map((item) => {
-      const displayStart = toDisplayStart(item.startTime);
-      const displayEnd = displayStart + item.duration;
+      const { start: displayStart, end: displayEnd } = normalizeDisplayRange(item.startTime, item.duration, START_MINUTES);
       const clippedStart = Math.max(displayStart, axisStart);
       const clippedEnd = Math.min(displayEnd, axisEnd);
       if (clippedEnd <= clippedStart) return null;
@@ -100,10 +93,9 @@ export function TodayPage({
       .sort((a, b) => a.startTime - b.startTime);
   }, [data.planItems, todayIndex, weekId]);
   const todayBlockingItems = useMemo(() => {
-    return data.planItems
-      .filter((item) => item.weekId === weekId && item.dayOfWeek === todayIndex)
-      .sort((a, b) => a.startTime - b.startTime);
-  }, [data.planItems, todayIndex, weekId]);
+    const lifestyleItems = getWeekLifestyleItemsFromData(data, weekId).filter((item) => item.dayOfWeek === todayIndex);
+    return [...todayItems, ...lifestyleItems].sort((a, b) => a.startTime - b.startTime);
+  }, [data, todayIndex, todayItems, weekId]);
   const todaySegments = useMemo<TodaySegment[]>(() => buildDaySegments(todayBlockingItems), [todayBlockingItems]);
 
   const plannedMinutes = todayItems.reduce((sum, item) => sum + item.duration, 0);

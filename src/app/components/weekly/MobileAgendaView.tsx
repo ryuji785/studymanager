@@ -2,7 +2,7 @@ import React from 'react';
 import { CalendarDays } from 'lucide-react';
 
 import type { Category, Material, PlanItem } from '../../types';
-import { formatMinutes, minutesToTimeString } from '../../utils/time';
+import { formatMinutes, minutesToTimeString, normalizeDisplayRange } from '../../utils/time';
 import { cn } from '../ui/utils';
 import { PlanItemCard } from './PlanItemCard';
 
@@ -14,12 +14,6 @@ type AgendaSegment =
   | { kind: 'item'; start: number; item: PlanItem }
   | { kind: 'gap'; start: number; duration: number };
 
-function toDisplayStart(startTime: number) {
-  if (startTime >= 1440) return startTime;
-  if (startTime < START_MINUTES) return startTime + 1440;
-  return startTime;
-}
-
 function formatTimeRange(startTime: number, duration: number) {
   const endTime = startTime + duration;
   return `${minutesToTimeString(startTime)}〜${minutesToTimeString(endTime)}`;
@@ -30,8 +24,7 @@ function buildDaySegments(dayItems: PlanItem[]) {
   const axisEnd = START_MINUTES + TOTAL_MINUTES;
   const entries = dayItems
     .map((item) => {
-      const displayStart = toDisplayStart(item.startTime);
-      const displayEnd = displayStart + item.duration;
+      const { start: displayStart, end: displayEnd } = normalizeDisplayRange(item.startTime, item.duration, START_MINUTES);
       const clippedStart = Math.max(displayStart, axisStart);
       const clippedEnd = Math.min(displayEnd, axisEnd);
       if (clippedEnd <= clippedStart) return null;

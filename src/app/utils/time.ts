@@ -23,3 +23,21 @@ export function minutesToTimeString(minutes: number): string {
   const m = display % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
+
+export function normalizeDisplayRange(
+  startTime: number,
+  duration: number,
+  axisStart = 6 * 60,
+  dayMinutes = 1440,
+): { start: number; end: number } {
+  let start = startTime;
+  let end = startTime + duration;
+  if (start >= dayMinutes) {
+    return { start, end };
+  }
+  if (start < axisStart && end <= axisStart) {
+    start += dayMinutes;
+    end += dayMinutes;
+  }
+  return { start, end };
+}

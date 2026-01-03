@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collap
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { StateCard } from './states/StateCard';
 import { AppChrome } from './layout/AppChrome';
-import { formatMinutes } from '../utils/time';
+import { formatMinutes, normalizeDisplayRange } from '../utils/time';
 
 interface StudentWeeklyViewProps {
   student: Student;
@@ -107,19 +107,12 @@ export function StudentWeeklyView({ student, weeklyPlan, weekLabel, onViewHistor
     return `${fmt(startTime)}〜${fmt(endTime)}`;
   };
 
-  const toDisplayStart = (startTime: number) => {
-    if (startTime >= 1440) return startTime;
-    if (startTime < START_MINUTES) return startTime + 1440;
-    return startTime;
-  };
-
   const getDaySegments = (dayIndex: number) => {
     const axisStart = START_MINUTES;
     const axisEnd = START_MINUTES + TOTAL_MINUTES;
     const dayBlocks = getDayBlocks(dayIndex)
       .map((block) => {
-        const displayStart = toDisplayStart(block.startTime);
-        const displayEnd = displayStart + block.duration;
+        const { start: displayStart, end: displayEnd } = normalizeDisplayRange(block.startTime, block.duration, START_MINUTES);
         const clippedStart = Math.max(displayStart, axisStart);
         const clippedEnd = Math.min(displayEnd, axisEnd);
         if (clippedEnd <= clippedStart) return null;
