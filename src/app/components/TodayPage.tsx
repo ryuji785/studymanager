@@ -177,7 +177,7 @@ export function TodayPage({
         />
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="relative">
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold text-muted-foreground">今日の進捗</CardTitle>
             </CardHeader>
@@ -302,7 +302,7 @@ export function TodayPage({
                   variant="ghost"
                   size="icon"
                   aria-label="前の未完了を表示"
-                  className="absolute left-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
+                  className="absolute left-2 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
                   onClick={() => setActiveIndex((prev) => Math.max(prev - 1, 0))}
                   disabled={activeIndex === 0}
                 >
@@ -312,7 +312,7 @@ export function TodayPage({
                   variant="ghost"
                   size="icon"
                   aria-label="次の未完了を表示"
-                  className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
+                  className="absolute right-2 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
                   onClick={() => setActiveIndex((prev) => Math.min(prev + 1, totalIncomplete - 1))}
                   disabled={activeIndex >= totalIncomplete - 1}
                 >
