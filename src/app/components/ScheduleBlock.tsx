@@ -7,9 +7,10 @@ interface ScheduleBlockProps {
   block: ScheduleBlockType;
   height: number;
   onClick?: React.MouseEventHandler<HTMLDivElement>;
+  className?: string;
 }
 
-export function ScheduleBlock({ block, height, onClick }: ScheduleBlockProps) {
+export function ScheduleBlock({ block, height, onClick, className }: ScheduleBlockProps) {
   const formatTime = (t: number) => {
     const normalized = t >= 1440 ? t - 1440 : t;
     const h = Math.floor(normalized / 60) % 24;
@@ -52,6 +53,7 @@ export function ScheduleBlock({ block, height, onClick }: ScheduleBlockProps) {
         'absolute w-full rounded border cursor-pointer hover:shadow-md transition-shadow overflow-hidden',
         CATEGORY_COLORS[block.category],
         isLifeBlock ? 'opacity-80' : '',
+        className ?? '',
       ].join(' ')}
       style={{ height: `${height}px` }}
       onClick={onClick}
