@@ -217,16 +217,13 @@ export function TodayPage({
               </div>
             </CardHeader>
             <CardContent
-              className="relative space-y-3 px-10"
+              className="relative space-y-3 px-10 pt-3"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
               {incompleteItems.length > 0 && activeItem ? (
                 <>
-                  <div
-                    className="flex items-center justify-between gap-2 text-xs text-muted-foreground"
-                  >
-                    <span className="font-medium text-muted-foreground">{activeLabel}</span>
+                  <div className="flex items-center justify-end text-xs text-muted-foreground">
                     {totalIncomplete > 1 ? (
                       <span className="text-[11px]">
                         {activeIndex + 1}/{totalIncomplete}
