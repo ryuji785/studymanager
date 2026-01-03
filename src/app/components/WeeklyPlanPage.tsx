@@ -942,7 +942,10 @@ export function WeeklyPlanPage({
       </Dialog>
 
       <Dialog open={setupOpen} onOpenChange={setSetupOpen}>
-        <DialogContent className="sm:max-w-[640px] max-h-[80vh] overflow-y-auto">
+        <DialogContent
+          className="sm:max-w-[640px] max-h-[80vh] overflow-y-auto"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{isLifestyleTemplateMissing ? '生活時間を登録' : 'この週の生活時間を編集'}</DialogTitle>
             <DialogDescription>
