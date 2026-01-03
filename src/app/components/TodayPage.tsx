@@ -16,6 +16,66 @@ import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 
 const DAYS = ['月', '火', '水', '木', '金', '土', '日'];
+const START_MINUTES = 6 * 60;
+const TOTAL_MINUTES = 24 * 60;
+
+type TodaySegment =
+  | { kind: 'item'; start: number; item: PlanItem }
+  | { kind: 'gap'; start: number; duration: number };
+
+function toDisplayStart(startTime: number) {
+  if (startTime >= 1440) return startTime;
+  if (startTime < START_MINUTES) return startTime + 1440;
+  return startTime;
+}
+
+function formatTimeRange(startTime: number, duration: number) {
+  const endTime = startTime + duration;
+  return `${minutesToTimeString(startTime)}〜${minutesToTimeString(endTime)}`;
+}
+
+function buildDaySegments(dayItems: PlanItem[]) {
+  const axisStart = START_MINUTES;
+  const axisEnd = START_MINUTES + TOTAL_MINUTES;
+  const entries = dayItems
+    .map((item) => {
+      const displayStart = toDisplayStart(item.startTime);
+      const displayEnd = displayStart + item.duration;
+      const clippedStart = Math.max(displayStart, axisStart);
+      const clippedEnd = Math.min(displayEnd, axisEnd);
+      if (clippedEnd <= clippedStart) return null;
+      return { item, displayStart: clippedStart, displayEnd: clippedEnd };
+    })
+    .filter((entry): entry is { item: PlanItem; displayStart: number; displayEnd: number } => entry !== null)
+    .sort((a, b) => (a.displayStart === b.displayStart ? a.displayEnd - b.displayEnd : a.displayStart - b.displayStart));
+
+  const merged: Array<{ start: number; end: number }> = [];
+  entries.forEach((entry) => {
+    const last = merged[merged.length - 1];
+    if (!last || entry.displayStart > last.end) {
+      merged.push({ start: entry.displayStart, end: entry.displayEnd });
+    } else {
+      last.end = Math.max(last.end, entry.displayEnd);
+    }
+  });
+
+  const gaps: Array<{ start: number; duration: number }> = [];
+  let cursor = axisStart;
+  merged.forEach((interval) => {
+    if (interval.start > cursor) {
+      gaps.push({ start: cursor, duration: interval.start - cursor });
+    }
+    cursor = Math.max(cursor, interval.end);
+  });
+  if (cursor < axisEnd) {
+    gaps.push({ start: cursor, duration: axisEnd - cursor });
+  }
+
+  return [
+    ...entries.map((entry) => ({ kind: 'item' as const, start: entry.displayStart, item: entry.item })),
+    ...gaps.map((gap) => ({ kind: 'gap' as const, start: gap.start, duration: gap.duration })),
+  ].sort((a, b) => a.start - b.start);
+}
 
 export function TodayPage({
   data,
@@ -39,6 +99,12 @@ export function TodayPage({
       .filter((item) => item.weekId === weekId && item.type === 'study' && item.dayOfWeek === todayIndex)
       .sort((a, b) => a.startTime - b.startTime);
   }, [data.planItems, todayIndex, weekId]);
+  const todayBlockingItems = useMemo(() => {
+    return data.planItems
+      .filter((item) => item.weekId === weekId && item.dayOfWeek === todayIndex)
+      .sort((a, b) => a.startTime - b.startTime);
+  }, [data.planItems, todayIndex, weekId]);
+  const todaySegments = useMemo<TodaySegment[]>(() => buildDaySegments(todayBlockingItems), [todayBlockingItems]);
 
   const plannedMinutes = todayItems.reduce((sum, item) => sum + item.duration, 0);
   const doneMinutes = todayItems
@@ -176,7 +242,41 @@ export function TodayPage({
           </div>
         ) : (
           <div className="mt-6 space-y-3">
-            {todayItems.map((item) => {
+            {todaySegments.map((segment) => {
+              if (segment.kind === 'gap') {
+                const isShort = segment.duration < 15;
+                const isNormal = segment.duration >= 30 && segment.duration <= 90;
+                const isLong = segment.duration >= 120;
+                const labelClasses = [
+                  'rounded-full px-2 py-0.5 text-[10px]',
+                  isShort ? 'bg-indigo-100/70 text-indigo-400 opacity-70' : '',
+                  isNormal ? 'bg-indigo-200/80 text-indigo-700' : '',
+                  isLong ? 'bg-indigo-300 text-indigo-900 font-semibold shadow-sm' : '',
+                  !isShort && !isNormal && !isLong ? 'bg-indigo-100/80 text-indigo-600' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ');
+
+                return (
+                  <Card
+                    key={`gap-${segment.start}`}
+                    className="border border-indigo-200/70 bg-indigo-50/70 text-indigo-700"
+                  >
+                    <CardContent className="py-3">
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-medium">{formatTimeRange(segment.start, segment.duration)}</span>
+                        <span className={labelClasses}>{formatMinutes(segment.duration)}</span>
+                      </div>
+                      <div className="mt-2 text-[11px] text-indigo-500">空き時間</div>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              const item = segment.item;
+              if (item.type !== 'study') {
+                return null;
+              }
               const startLabel = minutesToTimeString(item.startTime);
               const endLabel = minutesToTimeString(item.startTime + item.duration);
               const category = data.categories.find((c) => c.id === item.categoryId)?.name;
