@@ -1,9 +1,10 @@
 import React from 'react';
 
-export type NavKey = 'weekly' | 'today' | 'history' | 'materials' | 'settings';
+export type NavKey = 'mypage' | 'weekly' | 'today' | 'history' | 'materials' | 'settings';
 
 export type AppNavContextValue = {
   activeNav: NavKey;
+  navigateToMyPage: () => void;
   navigateToToday: () => void;
   navigateToWeeklyPlan: () => void;
   navigateToHistory: () => void;

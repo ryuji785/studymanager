@@ -9,6 +9,7 @@ import { TodayPage } from './components/TodayPage';
 import { MaterialsPage } from './components/MaterialsPage';
 import { HistoryPage } from './components/HistoryPage';
 import { SettingsPage } from './components/SettingsPage';
+import { MyPage } from './components/MyPage';
 import { Toaster } from './components/ui/sonner';
 import { StateCard } from './components/states/StateCard';
 import { WeeklyPlanSkeleton } from './components/states/Skeletons';
@@ -17,10 +18,10 @@ import { loadAppData, saveAppData } from './data/appDataStore';
 import { getWeekRange } from './utils/week';
 import { formatIsoDate } from './utils/date';
 
-type View = 'weekly' | 'today' | 'history' | 'materials' | 'settings';
+type View = 'mypage' | 'weekly' | 'today' | 'history' | 'materials' | 'settings';
 
 export default function App() {
-  const [view, setView] = useState<View>('weekly');
+  const [view, setView] = useState<View>('mypage');
   const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dataError, setDataError] = useState<string | null>(null);
   const [appData, setAppData] = useState<AppData | null>(null);
@@ -37,6 +38,7 @@ export default function App() {
   }));
 
   const activeNav = useMemo<NavKey>(() => {
+    if (view === 'mypage') return 'mypage';
     if (view === 'materials') return 'materials';
     if (view === 'settings') return 'settings';
     if (view === 'history') return 'history';
@@ -44,6 +46,7 @@ export default function App() {
     return 'weekly';
   }, [view]);
 
+  const navigateToMyPage = () => setView('mypage');
   const navigateToToday = () => setView('today');
   const navigateToWeeklyPlan = () => setView('weekly');
   const navigateToHistory = () => setView('history');
@@ -103,6 +106,7 @@ export default function App() {
     <AppNavProvider
       value={{
         activeNav,
+        navigateToMyPage,
         navigateToToday,
         navigateToWeeklyPlan,
         navigateToHistory,
@@ -110,6 +114,16 @@ export default function App() {
         navigateToSettings,
       }}
     >
+      {view === 'mypage' && (
+        <MyPage
+          data={appData}
+          onNavigateSettings={navigateToSettings}
+          onNavigateWeekly={navigateToWeeklyPlan}
+          onNavigateToday={navigateToToday}
+          onNavigateMaterials={navigateToMaterials}
+        />
+      )}
+
       {view === 'today' && (
         <TodayPage
           data={appData}
