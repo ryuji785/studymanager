@@ -2,6 +2,8 @@ import React from 'react';
 
 export type NavKey = 'mypage' | 'weekly' | 'today' | 'history' | 'materials' | 'settings';
 
+export type SettingsFocus = 'goal';
+
 export type AppNavContextValue = {
   activeNav: NavKey;
   navigateToMyPage: () => void;
@@ -9,7 +11,7 @@ export type AppNavContextValue = {
   navigateToWeeklyPlan: () => void;
   navigateToHistory: () => void;
   navigateToMaterials: () => void;
-  navigateToSettings: () => void;
+  navigateToSettings: (focus?: SettingsFocus) => void;
 };
 
 const AppNavContext = React.createContext<AppNavContextValue | null>(null);

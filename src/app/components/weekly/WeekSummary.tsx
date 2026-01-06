@@ -45,7 +45,7 @@ export function WeekSummary({
   progressValue: number;
   doneTotalDisplay: string;
   categorySummary: CategorySummaryEntry[];
-  onNavigateSettings: () => void;
+  onNavigateSettings: (focus?: 'goal') => void;
   showTodayToggle: boolean;
   todayPanelOpen: boolean;
   onToggleTodayPanel: () => void;

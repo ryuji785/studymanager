@@ -3,7 +3,7 @@ import { addWeeks, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
 import type { AppData, PlanWeek } from './types';
-import { AppNavProvider, type NavKey } from './components/layout/AppNavContext';
+import { AppNavProvider, type NavKey, type SettingsFocus } from './components/layout/AppNavContext';
 import { WeeklyPlanPage } from './components/WeeklyPlanPage';
 import { TodayPage } from './components/TodayPage';
 import { MaterialsPage } from './components/MaterialsPage';
@@ -25,6 +25,7 @@ export default function App() {
   const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dataError, setDataError] = useState<string | null>(null);
   const [appData, setAppData] = useState<AppData | null>(null);
+  const [settingsFocus, setSettingsFocus] = useState<SettingsFocus | null>(null);
 
   const currentWeek = useMemo(() => getWeekRange(new Date()), []);
   const [period, setPeriod] = useState({ start: currentWeek.weekStart, end: currentWeek.weekEnd });
@@ -51,7 +52,10 @@ export default function App() {
   const navigateToWeeklyPlan = () => setView('weekly');
   const navigateToHistory = () => setView('history');
   const navigateToMaterials = () => setView('materials');
-  const navigateToSettings = () => setView('settings');
+  const navigateToSettings = (focus?: SettingsFocus) => {
+    setSettingsFocus(focus ?? null);
+    setView('settings');
+  };
 
   const updateAppData = (updater: (prev: AppData) => AppData) => {
     setAppData((prev) => {
@@ -169,6 +173,7 @@ export default function App() {
         <SettingsPage
           data={appData}
           onUpdateData={updateAppData}
+          focusSection={settingsFocus}
         />
       )}
 
