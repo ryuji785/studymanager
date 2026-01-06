@@ -278,7 +278,7 @@ export function WeeklyPlanPage({
   period: PeriodValue;
   onChangePeriod: (next: PeriodValue) => void;
   onUpdateData: (updater: (prev: AppData) => AppData) => void;
-  onNavigateSettings: () => void;
+  onNavigateSettings: (focus?: 'goal') => void;
   onNavigateMaterials: () => void;
 }) {
   const weekId = weekIdFromStart(period.start);

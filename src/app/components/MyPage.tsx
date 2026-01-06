@@ -41,7 +41,7 @@ export function MyPage({
   onNavigateMaterials,
 }: {
   data: AppData;
-  onNavigateSettings: () => void;
+  onNavigateSettings: (focus?: 'goal') => void;
   onNavigateWeekly: () => void;
   onNavigateToday: () => void;
   onNavigateMaterials: () => void;
@@ -79,6 +79,7 @@ export function MyPage({
   const goalTitle = data.userGoalTitle?.trim() ?? '';
   const goalDeadline = data.userGoalDeadline ?? '';
   const goalOwner = data.userName?.trim() ?? '';
+  const hasGoalInfo = Boolean(goalTitle || goalDeadline);
   const remainingDays = goalDeadline
     ? Math.max(0, differenceInCalendarDays(parseISO(goalDeadline), today))
     : null;
@@ -177,7 +178,9 @@ export function MyPage({
             <CardHeader className="relative space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-slate-500">学習目標</span>
-                <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100">進行中</Badge>
+                <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100">
+                  {hasGoalInfo ? '進行中' : '未設定'}
+                </Badge>
               </div>
               <CardTitle className="text-lg md:text-xl">
                 {goalTitle || '目標を設定してください'}
@@ -206,9 +209,16 @@ export function MyPage({
                 </div>
               </div>
               <div>
-                <Button size="sm" variant="outline" onClick={onNavigateSettings}>
-                  目標を設定する
-                </Button>
+                {!hasGoalInfo ? (
+                  <p className="text-xs text-slate-500">
+                    目標名と期限を登録すると、達成率や残り日数が見やすくなります。
+                  </p>
+                ) : null}
+                <div className="mt-3">
+                  <Button size="sm" variant="outline" onClick={() => onNavigateSettings('goal')}>
+                    目標を設定する
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -234,6 +244,14 @@ export function MyPage({
                 <div className="text-2xl font-semibold text-slate-800">
                   {overallAchievementRate === null ? '未計測' : `${overallAchievementRate}%`}
                 </div>
+                {overallAchievementRate === null ? (
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p>今週の目標が未設定です。計画画面で入力してください。</p>
+                    <Button size="sm" variant="outline" className="h-7 px-3" onClick={onNavigateWeekly}>
+                      今週の計画を開く
+                    </Button>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
             <Card className="bg-white">
@@ -311,15 +329,20 @@ export function MyPage({
                     </span>
                   </div>
                   <Button variant="secondary" className="w-full bg-white text-slate-700 hover:bg-white/90" onClick={onNavigateToday}>
-                    学習を完了にする
+                    今日の予定を開く
                   </Button>
                 </>
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-white/90">今日の予定はまだありません。</p>
-                  <Button variant="secondary" className="w-full bg-white text-slate-700 hover:bg-white/90" onClick={onNavigateWeekly}>
-                    週計画を作成する
-                  </Button>
+                  <div className="grid gap-2">
+                    <Button variant="secondary" className="w-full bg-white text-slate-700 hover:bg-white/90" onClick={onNavigateWeekly}>
+                      週計画を作成する
+                    </Button>
+                    <Button variant="secondary" className="w-full bg-white/80 text-slate-700 hover:bg-white/90" onClick={onNavigateToday}>
+                      今日の予定を追加する
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -362,7 +385,7 @@ export function MyPage({
                 </div>
               ) : null}
               <Button variant="outline" className="w-full" onClick={onNavigateWeekly}>
-                計画を見直す
+                今週の計画を開く
               </Button>
             </CardContent>
           </Card>
@@ -400,7 +423,7 @@ export function MyPage({
                 </div>
               )}
               <Button variant="outline" className="w-full" onClick={onNavigateMaterials}>
-                すべて見る
+                教材管理を開く
               </Button>
             </CardContent>
           </Card>

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import type { AppData, LifestyleTemplate } from '../types';
@@ -39,9 +39,11 @@ function computeAvailableMinutes(template: LifestyleTemplate | undefined) {
 export function SettingsPage({
   data,
   onUpdateData,
+  focusSection,
 }: {
   data: AppData;
   onUpdateData: (updater: (prev: AppData) => AppData) => void;
+  focusSection?: 'goal' | null;
 }) {
   const [draft, setDraft] = useState<LifestyleTemplate>(
     data.lifestyleTemplate ?? createDefaultLifestyleTemplate(),
@@ -49,6 +51,7 @@ export function SettingsPage({
   const [userName, setUserName] = useState(data.userName ?? '');
   const [goalTitle, setGoalTitle] = useState(data.userGoalTitle ?? '');
   const [goalDeadline, setGoalDeadline] = useState(data.userGoalDeadline ?? '');
+  const goalSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setDraft(data.lifestyleTemplate ?? createDefaultLifestyleTemplate());
@@ -56,6 +59,13 @@ export function SettingsPage({
     setGoalTitle(data.userGoalTitle ?? '');
     setGoalDeadline(data.userGoalDeadline ?? '');
   }, [data.lifestyleTemplate, data.userGoalDeadline, data.userGoalTitle, data.userName]);
+
+  useEffect(() => {
+    if (focusSection !== 'goal') return;
+    const target = goalSectionRef.current;
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [focusSection]);
 
   const handleSave = () => {
     if (draft.weekdaySleep.startTime === draft.weekdaySleep.endTime) {
@@ -93,20 +103,12 @@ export function SettingsPage({
           valueClassName={lifestyleReady ? undefined : 'text-base text-muted-foreground font-medium'}
         />
 
-        <Card>
+        <Card ref={goalSectionRef}>
           <CardHeader>
-            <CardTitle className="text-base font-semibold text-foreground">生活時間（学習可能時間の計算）</CardTitle>
-            <p className="text-sm text-muted-foreground">学習可能時間の計算に使用されます。</p>
-          </CardHeader>
-          <CardContent>
-            <LifestyleForm value={draft} categories={data.categories} onChange={setDraft} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-semibold text-foreground">ユーザー設定</CardTitle>
-            <p className="text-sm text-muted-foreground">表示名と目標を記録しておくことで、学習の軸がぶれにくくなります。</p>
+            <CardTitle className="text-base font-semibold text-foreground">目標・ユーザー設定</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              目標名と期限を入れると、マイページの進捗表示がわかりやすくなります。
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
@@ -138,6 +140,16 @@ export function SettingsPage({
             <p className="text-xs text-muted-foreground">
               目標は週計画の判断材料として表示されます（MVPのため最低限の項目のみ扱います）。
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-foreground">生活時間（学習可能時間の計算）</CardTitle>
+            <p className="text-sm text-muted-foreground">学習可能時間の計算に使用されます。</p>
+          </CardHeader>
+          <CardContent>
+            <LifestyleForm value={draft} categories={data.categories} onChange={setDraft} />
           </CardContent>
         </Card>
       </PageLayout>
