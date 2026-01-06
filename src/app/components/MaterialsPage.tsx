@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,7 +14,6 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Switch } from './ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { EmptyState } from './ui/empty-state';
 import { PageHeader } from './ui/page-header';
@@ -23,8 +22,6 @@ import { cn } from './ui/utils';
 import { CATEGORY_COLOR_POOL } from '../utils/categoryColors';
 
 const UNCATEGORIZED_ID = 'uncategorized';
-const MATERIAL_FOCUS_KEY = 'study-manager.materials-focus';
-
 type SortMode = 'deadline' | 'name' | 'recent';
 
 function createCategory(name: string, usedColors: string[]): Category {
@@ -198,23 +195,6 @@ export function MaterialsPage({
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
   const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
-  const [focusMaterialIds, setFocusMaterialIds] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set();
-    try {
-      const raw = window.localStorage.getItem(MATERIAL_FOCUS_KEY);
-      if (!raw) return new Set();
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? new Set(parsed) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(MATERIAL_FOCUS_KEY, JSON.stringify(Array.from(focusMaterialIds)));
-  }, [focusMaterialIds]);
-
   const categoryById = useMemo(() => new Map(data.categories.map((c) => [c.id, c])), [data.categories]);
   const orderedCategories = useMemo(() => {
     const uncategorized = data.categories.find((category) => category.id === UNCATEGORIZED_ID);
@@ -278,11 +258,6 @@ export function MaterialsPage({
         item.materialId === material.id ? { ...item, materialId: undefined } : item,
       ),
     }));
-    setFocusMaterialIds((prev) => {
-      const next = new Set(prev);
-      next.delete(material.id);
-      return next;
-    });
     toast.message('教材を削除しました');
   };
 
@@ -351,18 +326,6 @@ export function MaterialsPage({
 
     toast.message('カテゴリを削除しました');
     setDeleteTarget(null);
-  };
-
-  const toggleFocus = (materialId: string, next: boolean) => {
-    setFocusMaterialIds((prev) => {
-      const updated = new Set(prev);
-      if (next) {
-        updated.add(materialId);
-      } else {
-        updated.delete(materialId);
-      }
-      return updated;
-    });
   };
 
   return (
@@ -450,83 +413,77 @@ export function MaterialsPage({
               ) : filteredMaterials.length === 0 ? (
                 <p className="text-sm text-muted-foreground">一致する教材がありません。</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>教材名</TableHead>
-                      <TableHead>カテゴリ</TableHead>
-                      <TableHead>締切</TableHead>
-                      <TableHead className="text-center">今週やる</TableHead>
-                      <TableHead className="text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredMaterials.map((material) => {
-                      const category = categoryById.get(material.categoryId);
-                      const daysToDeadline = getDaysToDeadline(material.deadline);
-                      const deadlineBadge =
-                        typeof daysToDeadline === 'number' && daysToDeadline >= 0 ? (
-                          <Badge variant="outline" className="border-border text-muted-foreground">
-                            {daysToDeadline === 0 ? '締切日' : `あと${daysToDeadline}日`}
-                          </Badge>
-                        ) : typeof daysToDeadline === 'number' ? (
-                          <Badge variant="outline" className="border-amber-200 text-amber-700 bg-amber-50/70">
-                            締切経過
-                          </Badge>
-                        ) : null;
-                      return (
-                        <TableRow key={material.id}>
-                          <TableCell className="font-medium text-foreground">{material.name}</TableCell>
-                          <TableCell>
-                            {category ? (
-                              <Badge className={category.color} variant="outline">
-                                {category.name}
-                              </Badge>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
-                              <span>{formatDisplayFromISO(material.deadline)}</span>
-                              {deadlineBadge}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Switch
-                              checked={focusMaterialIds.has(material.id)}
-                              onCheckedChange={(checked) => toggleFocus(material.id, checked)}
-                              aria-label={`${material.name}を今週やるにする`}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setEditing(material);
-                                  setDialogOpen(true);
-                                }}
-                              >
-                                <Pencil className="w-4 h-4 mr-1" />
-                                編集
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteMaterial(material)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                削除
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[640px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>教材名</TableHead>
+                        <TableHead>カテゴリ</TableHead>
+                        <TableHead>締切</TableHead>
+                        <TableHead className="text-right">操作</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMaterials.map((material) => {
+                        const category = categoryById.get(material.categoryId);
+                        const daysToDeadline = getDaysToDeadline(material.deadline);
+                        const deadlineBadge =
+                          typeof daysToDeadline === 'number' && daysToDeadline >= 0 ? (
+                            <Badge variant="outline" className="border-border text-muted-foreground">
+                              {daysToDeadline === 0 ? '締切日' : `あと${daysToDeadline}日`}
+                            </Badge>
+                          ) : typeof daysToDeadline === 'number' ? (
+                            <Badge variant="outline" className="border-amber-200 text-amber-700 bg-amber-50/70">
+                              締切経過
+                            </Badge>
+                          ) : null;
+                        return (
+                          <TableRow key={material.id}>
+                            <TableCell className="font-medium text-foreground">{material.name}</TableCell>
+                            <TableCell>
+                              {category ? (
+                                <Badge className={category.color} variant="outline">
+                                  {category.name}
+                                </Badge>
+                              ) : (
+                                '-'
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                                <span>{formatDisplayFromISO(material.deadline)}</span>
+                                {deadlineBadge}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditing(material);
+                                    setDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="w-4 h-4 mr-1" />
+                                  編集
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteMaterial(material)}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-1" />
+                                  削除
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
