@@ -27,6 +27,10 @@ export default function App() {
 
   const currentWeek = useMemo(() => getWeekRange(new Date()), []);
   const [period, setPeriod] = useState({ start: currentWeek.weekStart, end: currentWeek.weekEnd });
+  const todayPeriod = useMemo(() => {
+    const { weekStart, weekEnd } = getWeekRange(new Date());
+    return { start: weekStart, end: weekEnd };
+  }, [view]);
   const [historyPeriod, setHistoryPeriod] = useState(() => ({
     start: formatIsoDate(addWeeks(parseISO(currentWeek.weekStart), -8)),
     end: currentWeek.weekEnd,
@@ -109,7 +113,7 @@ export default function App() {
       {view === 'today' && (
         <TodayPage
           data={appData}
-          period={period}
+          period={todayPeriod}
           onUpdateData={updateAppData}
           onNavigateWeekly={navigateToWeeklyPlan}
         />
@@ -158,4 +162,3 @@ export default function App() {
     </AppNavProvider>
   );
 }
-
