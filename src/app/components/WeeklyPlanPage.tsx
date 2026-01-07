@@ -334,6 +334,11 @@ export function WeeklyPlanPage({
     : '未設定';
   const completionLabel = plannedMinutes > 0 ? `${completionRate}%` : '—';
   const doneTotalDisplay = doneMinutes === 0 ? '0分' : formatMinutes(doneMinutes);
+  const budgetTotalDisplay = lifestyleReady ? formatMinutes(availableMinutes) : '未設定';
+  const budgetPlannedDisplay = plannedMinutes > 0 ? formatMinutes(plannedMinutes) : '未設定';
+  const budgetRemainingRatio =
+    availableMinutes > 0 ? Math.max(0, Math.min(1, remainingAvailableMinutes / availableMinutes)) * 100 : 0;
+  const budgetOver = lifestyleReady && plannedMinutes > availableMinutes;
 
   const doneCategoryTotals = computeCategoryTotals(doneItems);
   const plannedCategoryTotals = new Map<string, number>();
@@ -708,7 +713,12 @@ export function WeeklyPlanPage({
           <WeekSummary
             period={period}
             onChangePeriod={onChangePeriod}
-            remainingDisplay={remainingDisplay}
+            budgetRemainingDisplay={remainingDisplay}
+            budgetTotalDisplay={budgetTotalDisplay}
+            budgetPlannedDisplay={budgetPlannedDisplay}
+            budgetRemainingRatio={budgetRemainingRatio}
+            budgetOver={budgetOver}
+            budgetReady={lifestyleReady}
             completionLabel={completionLabel}
             progressValue={progressValue}
             doneTotalDisplay={doneTotalDisplay}
