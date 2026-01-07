@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { addDays, differenceInCalendarDays, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import {
+  BookOpen,
   Calendar,
   CheckCircle2,
   Clock,
@@ -163,6 +164,19 @@ export function MyPage({
       .slice(0, 3);
   }, [data.materials, today]);
 
+  const nextStep = useMemo(() => {
+    if (!hasGoalInfo) {
+      return { label: '目標を決める', onClick: () => onNavigateSettings('goal'), icon: <Goal className="h-4 w-4" /> };
+    }
+    if (data.materials.length === 0) {
+      return { label: '教材を登録', onClick: onNavigateMaterials, icon: <BookOpen className="h-4 w-4" /> };
+    }
+    if (weekStudyItems.length === 0) {
+      return { label: '今週の計画へ', onClick: onNavigateWeekly, icon: <Calendar className="h-4 w-4" /> };
+    }
+    return null;
+  }, [data.materials.length, hasGoalInfo, onNavigateMaterials, onNavigateSettings, onNavigateWeekly, weekStudyItems.length]);
+
   return (
     <AppChrome title="マイページ" actions={null}>
       <PageLayout>
@@ -171,6 +185,20 @@ export function MyPage({
           description="目標と進捗をひと目で確認し、次の学習につなげましょう。"
           action={null}
         />
+
+        {nextStep ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                {nextStep.icon}
+                <span>次のステップ</span>
+              </div>
+              <Button size="sm" onClick={nextStep.onClick}>
+                {nextStep.label}
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
           <Card className="relative overflow-hidden">

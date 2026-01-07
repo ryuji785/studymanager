@@ -25,6 +25,7 @@ export function GoalsSection({
   onGoalDelete,
 }: GoalsSectionProps) {
   const isEmpty = goals.every((goal) => !goal.text.trim());
+  const firstEmptyIndex = goals.findIndex((goal) => !goal.text.trim());
 
   return (
     <Card>
@@ -73,6 +74,7 @@ export function GoalsSection({
                   value={goal.text}
                   onChange={(e) => onGoalChange?.(goal.id, e.target.value)}
                   placeholder={`目標${index + 1}`}
+                  autoFocus={firstEmptyIndex === index}
                   className="flex-1"
                 />
               ) : (
