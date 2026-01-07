@@ -21,7 +21,7 @@ import { formatIsoDate } from './utils/date';
 type View = 'mypage' | 'weekly' | 'today' | 'history' | 'materials' | 'settings';
 
 export default function App() {
-  const [view, setView] = useState<View>('mypage');
+  const [view, setView] = useState<View>('weekly');
   const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dataError, setDataError] = useState<string | null>(null);
   const [appData, setAppData] = useState<AppData | null>(null);

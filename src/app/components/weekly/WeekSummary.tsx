@@ -28,7 +28,12 @@ function normalizeLabel(value?: string | null) {
 export function WeekSummary({
   period,
   onChangePeriod,
-  remainingDisplay,
+  budgetRemainingDisplay,
+  budgetTotalDisplay,
+  budgetPlannedDisplay,
+  budgetRemainingRatio,
+  budgetOver,
+  budgetReady,
   completionLabel,
   progressValue,
   doneTotalDisplay,
@@ -40,7 +45,12 @@ export function WeekSummary({
 }: {
   period: PeriodValue;
   onChangePeriod: (next: PeriodValue) => void;
-  remainingDisplay: string;
+  budgetRemainingDisplay: string;
+  budgetTotalDisplay: string;
+  budgetPlannedDisplay: string;
+  budgetRemainingRatio: number;
+  budgetOver: boolean;
+  budgetReady: boolean;
   completionLabel: string;
   progressValue: number;
   doneTotalDisplay: string;
@@ -59,15 +69,31 @@ export function WeekSummary({
             <PeriodSelector value={period} onChange={onChangePeriod} mode="week" weekStartsOn={1} />
           </div>
 
-          <div className="flex flex-1 flex-wrap items-center justify-center gap-8 text-xs text-muted-foreground">
-            <div className="flex flex-col gap-1">
-              <span className="text-[11px]">残り時間</span>
-              <span className="text-sm font-semibold text-foreground">{remainingDisplay}</span>
+          <div className="flex flex-1 flex-wrap items-center gap-6 text-xs text-muted-foreground">
+            <div className="min-w-[220px] flex-1 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px]">今週あと</span>
+                {budgetOver ? <Badge variant="destructive">予算超過</Badge> : null}
+              </div>
+              <div className="mt-1 text-2xl font-semibold text-foreground">
+                {budgetRemainingDisplay}
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                <span>最大 {budgetTotalDisplay}</span>
+                <span>予定 {budgetPlannedDisplay}</span>
+              </div>
+              <div className="mt-2">
+                <Progress value={budgetRemainingRatio} className="h-1.5 bg-secondary" />
+                <div className="mt-1 text-[10px] text-muted-foreground">
+                  {budgetReady ? '残りの学習時間予算' : '生活時間を登録すると算出されます'}
+                </div>
+              </div>
             </div>
+
             <div className="flex flex-col gap-1">
               <span className="text-[11px]">進捗</span>
               <div className="flex items-center gap-2">
-                <Progress value={progressValue} className="h-1.5 w-[150px] bg-secondary" />
+                <Progress value={progressValue} className="h-1.5 w-[140px] bg-secondary" />
                 <span className="text-sm font-semibold text-foreground">{completionLabel}</span>
               </div>
             </div>

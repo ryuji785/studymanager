@@ -91,9 +91,9 @@ export function AppChrome({
 
   const navItems = useMemo<NavItem[]>(
     () => [
-      { key: 'mypage', label: 'マイページ', icon: <LayoutGrid className="w-4 h-4" />, onSelect: navigateToMyPage },
-      { key: 'today', label: '今日の予定', icon: <CalendarCheck className="w-4 h-4" />, onSelect: navigateToToday },
       { key: 'weekly', label: '今週の計画', icon: <CalendarDays className="w-4 h-4" />, onSelect: navigateToWeeklyPlan },
+      { key: 'today', label: '今日の予定', icon: <CalendarCheck className="w-4 h-4" />, onSelect: navigateToToday },
+      { key: 'mypage', label: 'マイページ', icon: <LayoutGrid className="w-4 h-4" />, onSelect: navigateToMyPage },
       { key: 'history', label: '学習の実績', icon: <History className="w-4 h-4" />, onSelect: navigateToHistory },
       { key: 'materials', label: '教材管理', icon: <BookOpen className="w-4 h-4" />, onSelect: navigateToMaterials },
       { key: 'settings', label: '設定', icon: <Settings className="w-4 h-4" />, onSelect: navigateToSettings },
