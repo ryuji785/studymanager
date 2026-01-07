@@ -52,6 +52,7 @@ export function SettingsPage({
   const [goalTitle, setGoalTitle] = useState(data.userGoalTitle ?? '');
   const [goalDeadline, setGoalDeadline] = useState(data.userGoalDeadline ?? '');
   const goalSectionRef = useRef<HTMLDivElement | null>(null);
+  const todayIso = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     setDraft(data.lifestyleTemplate ?? createDefaultLifestyleTemplate());
@@ -132,6 +133,7 @@ export function SettingsPage({
                 <Label>期限（任意）</Label>
                 <Input
                   type="date"
+                  min={todayIso}
                   value={goalDeadline}
                   onChange={(event) => setGoalDeadline(event.target.value)}
                 />
