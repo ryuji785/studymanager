@@ -442,7 +442,16 @@ export function PlanTimeTable({
 
   const startSelection = (event: React.PointerEvent, dayIndex: number, startAxis: number) => {
     if (!editable) return;
-    if (event.button !== 0) return;
+    if (event.pointerType !== 'touch' && event.button !== 0) return;
+    if (event.pointerType === 'touch') {
+      event.preventDefault();
+      event.stopPropagation();
+      clearSelectionRange();
+      setSelectedItemId(null);
+      setContextMenu(null);
+      onEmptySlotClick?.(dayIndex, startAxis % DAY_MINUTES);
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
 
