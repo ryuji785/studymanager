@@ -13,6 +13,8 @@ import { MyPage } from './components/MyPage';
 import { Toaster } from './components/ui/sonner';
 import { StateCard } from './components/states/StateCard';
 import { WeeklyPlanSkeleton } from './components/states/Skeletons';
+import { AuthProvider, useAuth } from './components/auth/AuthContext';
+import { LoginPage } from './components/auth/LoginPage';
 
 import { loadAppData, saveAppData } from './data/appDataStore';
 import { getWeekRange } from './utils/week';
@@ -20,7 +22,8 @@ import { formatIsoDate } from './utils/date';
 
 type View = 'mypage' | 'weekly' | 'today' | 'history' | 'materials' | 'settings';
 
-export default function App() {
+function AppContent() {
+  const { session, signIn } = useAuth();
   const [view, setView] = useState<View>('weekly');
   const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dataError, setDataError] = useState<string | null>(null);
@@ -81,8 +84,18 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!session) return;
     reloadData();
-  }, []);
+  }, [session]);
+
+  useEffect(() => {
+    if (!session || !appData || appData.userName || !session.name) return;
+    updateAppData((prev) => ({ ...prev, userName: session.name }));
+  }, [appData, session, updateAppData]);
+
+  if (!session) {
+    return <LoginPage onSignedIn={signIn} />;
+  }
 
   if (dataStatus === 'loading') {
     return <WeeklyPlanSkeleton />;
@@ -179,5 +192,13 @@ export default function App() {
 
       <Toaster />
     </AppNavProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
