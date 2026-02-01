@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { addWeeks, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -15,6 +16,7 @@ import { StateCard } from './components/states/StateCard';
 import { WeeklyPlanSkeleton } from './components/states/Skeletons';
 import { AuthProvider, useAuth } from './components/auth/AuthContext';
 import { LoginPage } from './components/auth/LoginPage';
+import { PrivateRoute } from './components/auth/PrivateRoute';
 
 import { loadAppData, saveAppData } from './data/appDataStore';
 import { getWeekRange } from './utils/week';
@@ -23,7 +25,7 @@ import { formatIsoDate } from './utils/date';
 type View = 'mypage' | 'weekly' | 'today' | 'history' | 'materials' | 'settings';
 
 function AppContent() {
-  const { session, signIn } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [view, setView] = useState<View>('weekly');
   const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dataError, setDataError] = useState<string | null>(null);
@@ -84,18 +86,14 @@ function AppContent() {
   };
 
   useEffect(() => {
-    if (!session) return;
+    if (!isAuthenticated) return;
     reloadData();
-  }, [session]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!session || !appData || appData.userName || !session.name) return;
-    updateAppData((prev) => ({ ...prev, userName: session.name }));
-  }, [appData, session, updateAppData]);
-
-  if (!session) {
-    return <LoginPage onSignedIn={signIn} />;
-  }
+    if (!user || !appData || appData.userName || !user.name) return;
+    updateAppData((prev) => ({ ...prev, userName: user.name }));
+  }, [appData, updateAppData, user]);
 
   if (dataStatus === 'loading') {
     return <WeeklyPlanSkeleton />;
@@ -198,7 +196,15 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<PrivateRoute />}>
+            <Route path="/" element={<AppContent />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

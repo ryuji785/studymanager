@@ -41,7 +41,7 @@ export function AppChrome({
   children: React.ReactNode;
   mainClassName?: string;
 }) {
-  const { session, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const isMobile = useIsMobile();
   const {
     activeNav,
@@ -148,14 +148,14 @@ export function AppChrome({
     </nav>
   );
 
-  const initials = session?.name
-    ? session.name
+  const initials = user?.name
+    ? user.name
         .split(' ')
         .filter(Boolean)
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase())
         .join('')
-    : session?.email?.[0]?.toUpperCase() ?? '?';
+    : user?.email?.[0]?.toUpperCase() ?? '?';
 
   return (
     <div className="min-h-screen bg-background">
@@ -226,7 +226,7 @@ export function AppChrome({
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0 max-w-[60vw] overflow-x-auto">
-                  {session ? (
+                  {user ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
@@ -234,21 +234,21 @@ export function AppChrome({
                           className="flex items-center gap-2 rounded-full border border-border bg-background px-2 py-1 text-xs text-foreground shadow-sm"
                         >
                           <Avatar className="size-7">
-                            <AvatarImage src={session.avatarUrl} alt={session.name ?? session.email ?? 'user'} />
+                            <AvatarImage src={user.picture} alt={user.name ?? user.email ?? 'user'} />
                             <AvatarFallback className="text-[10px] font-semibold">{initials}</AvatarFallback>
                           </Avatar>
                           <span className="hidden sm:inline text-muted-foreground">
-                            {session.name ?? session.email ?? 'Googleユーザー'}
+                            {user.name ?? user.email ?? 'Googleユーザー'}
                           </span>
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuLabel className="text-xs text-muted-foreground">サインイン中</DropdownMenuLabel>
                         <div className="px-2 py-1 text-sm font-medium text-foreground">
-                          {session.name ?? 'Googleユーザー'}
+                          {user.name ?? 'Googleユーザー'}
                         </div>
-                        {session.email ? (
-                          <div className="px-2 pb-2 text-xs text-muted-foreground">{session.email}</div>
+                        {user.email ? (
+                          <div className="px-2 pb-2 text-xs text-muted-foreground">{user.email}</div>
                         ) : null}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
