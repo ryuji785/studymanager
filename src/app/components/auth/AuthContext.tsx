@@ -1,8 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { clearStoredSession, getStoredSession } from '../../runtime/authStorage';
-
 type AuthUser = {
+  id: string;
   name?: string;
   email?: string;
   picture?: string;
@@ -19,9 +18,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const isServerAuthEnabled = Boolean(API_BASE_URL);
-const isClientAuthEnabled = Boolean(GOOGLE_CLIENT_ID);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -30,44 +27,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
-    if (isServerAuthEnabled) {
-      try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
-          credentials: 'include',
-        });
-        if (!response.ok) {
-          setUser(null);
-          return;
-        }
-        const payload = (await response.json()) as AuthUser;
-        setUser(payload);
-      } catch (error) {
-        console.error('Auth check failed.', error);
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    if (isClientAuthEnabled) {
-      const stored = getStoredSession();
-      if (!stored) {
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-      setUser({
-        name: stored.name,
-        email: stored.email,
-        picture: stored.avatarUrl,
-      });
+    if (!isServerAuthEnabled) {
+      setUser(null);
       setIsLoading(false);
       return;
     }
 
-    setUser(null);
-    setIsLoading(false);
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        setUser(null);
+        return;
+      }
+      const payload = (await response.json()) as AuthUser;
+      setUser(payload);
+    } catch (error) {
+      console.error('Auth check failed.', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const signOut = useCallback(async () => {
@@ -86,8 +67,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return;
     }
-
-    clearStoredSession();
     setUser(null);
   }, []);
 
