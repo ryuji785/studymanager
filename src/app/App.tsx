@@ -1,90 +1,87 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { addWeeks, parseISO } from 'date-fns';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import type { AppData, PlanWeek } from './types';
+import { loadAppData, saveAppData } from './data/appDataStore';
+import { formatIsoDate } from './utils/date';
+import { getWeekRange } from './utils/week';
 import { AppNavProvider, type NavKey, type SettingsFocus } from './components/layout/AppNavContext';
-import { WeeklyPlanPage } from './components/WeeklyPlanPage';
-import { TodayPage } from './components/TodayPage';
-import { MaterialsPage } from './components/MaterialsPage';
-import { HistoryPage } from './components/HistoryPage';
-import { SettingsPage } from './components/SettingsPage';
-import { MyPage } from './components/MyPage';
 import { Toaster } from './components/ui/sonner';
-import { StateCard } from './components/states/StateCard';
 import { WeeklyPlanSkeleton } from './components/states/Skeletons';
 import { AuthProvider, useAuth } from './components/auth/AuthContext';
 import { LoginPage } from './components/auth/LoginPage';
 import { PrivateRoute } from './components/auth/PrivateRoute';
+import { HomePage } from './components/HomePage';
+import { PlanPage } from './components/PlanPage';
+import { StockListPage } from './components/StockListPage';
+import { LogPage } from './components/LogPage';
+import { SettingsPage } from './components/SettingsPage';
 
-import { loadAppData, saveAppData } from './data/appDataStore';
-import { getWeekRange } from './utils/week';
-import { formatIsoDate } from './utils/date';
-
-type View = 'mypage' | 'weekly' | 'today' | 'history' | 'materials' | 'settings';
+type View = 'home' | 'plan' | 'materials' | 'history' | 'settings';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 const isServerAuthEnabled = Boolean(API_BASE_URL);
+
 const VIEW_PATHS: Record<View, string> = {
-  mypage: '/mypage',
-  weekly: '/weekly',
-  today: '/today',
-  history: '/history',
+  home: '/home',
+  plan: '/plan',
   materials: '/materials',
+  history: '/history',
   settings: '/settings',
 };
 
 function getViewFromParam(value?: string): View | null {
-  if (value === 'mypage') return 'mypage';
-  if (value === 'weekly') return 'weekly';
-  if (value === 'today') return 'today';
-  if (value === 'history') return 'history';
+  if (value === 'home') return 'home';
+  if (value === 'plan') return 'plan';
   if (value === 'materials') return 'materials';
+  if (value === 'history') return 'history';
   if (value === 'settings') return 'settings';
   return null;
 }
 
 function AppContent() {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { view: routeViewParam } = useParams<{ view?: string }>();
 
   const routeView = useMemo(() => getViewFromParam(routeViewParam), [routeViewParam]);
-  const view = routeView ?? 'weekly';
+  const view: View = routeView ?? 'home';
 
   const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dataError, setDataError] = useState<string | null>(null);
   const [appData, setAppData] = useState<AppData | null>(null);
 
   const settingsFocus = useMemo<SettingsFocus | null>(() => {
-    try {
-      const focus = new URLSearchParams(location.search).get('focus');
-      return focus === 'goal' ? 'goal' : null;
-    } catch {
-      return null;
-    }
+    const value = new URLSearchParams(location.search).get('focus');
+    return value === 'goal' ? 'goal' : null;
   }, [location.search]);
 
   const currentWeek = useMemo(() => getWeekRange(new Date()), []);
-  const [period, setPeriod] = useState({ start: currentWeek.weekStart, end: currentWeek.weekEnd });
-  const todayPeriod = useMemo(() => {
-    const { weekStart, weekEnd } = getWeekRange(new Date());
-    return { start: weekStart, end: weekEnd };
-  }, [view]);
+  const [planPeriod, setPlanPeriod] = useState({ start: currentWeek.weekStart, end: currentWeek.weekEnd });
   const [historyPeriod, setHistoryPeriod] = useState(() => ({
     start: formatIsoDate(addWeeks(parseISO(currentWeek.weekStart), -8)),
     end: currentWeek.weekEnd,
   }));
 
-  const activeNav = useMemo<NavKey>(() => view, [view]);
+  const homePeriod = useMemo(() => {
+    const current = getWeekRange(new Date());
+    return { start: current.weekStart, end: current.weekEnd };
+  }, [view]);
 
-  const navigateToMyPage = useCallback(() => navigate(VIEW_PATHS.mypage), [navigate]);
-  const navigateToToday = useCallback(() => navigate(VIEW_PATHS.today), [navigate]);
-  const navigateToWeeklyPlan = useCallback(() => navigate(VIEW_PATHS.weekly), [navigate]);
-  const navigateToHistory = useCallback(() => navigate(VIEW_PATHS.history), [navigate]);
+  const activeNav = useMemo<NavKey>(() => {
+    if (view === 'plan') return 'plan';
+    if (view === 'materials') return 'materials';
+    if (view === 'history') return 'history';
+    return 'home';
+  }, [view]);
+
+  const navigateToHome = useCallback(() => navigate(VIEW_PATHS.home), [navigate]);
+  const navigateToPlan = useCallback(() => navigate(VIEW_PATHS.plan), [navigate]);
   const navigateToMaterials = useCallback(() => navigate(VIEW_PATHS.materials), [navigate]);
+  const navigateToHistory = useCallback(() => navigate(VIEW_PATHS.history), [navigate]);
   const navigateToSettings = useCallback(
     (focus?: SettingsFocus) => {
       const safeFocus = focus === 'goal' ? 'goal' : null;
@@ -111,7 +108,7 @@ function AppContent() {
       setDataStatus('ready');
     } catch (error) {
       console.error(error);
-      setDataError(error instanceof Error ? error.message : '読み込みに失敗しました');
+      setDataError(error instanceof Error ? error.message : 'データの読み込みに失敗しました。');
       setDataStatus('error');
     }
   }, []);
@@ -123,32 +120,37 @@ function AppContent() {
   }, [isAuthLoading, isAuthenticated, reloadData]);
 
   useEffect(() => {
-    if (!routeView) {
-      navigate(VIEW_PATHS.weekly, { replace: true });
-    }
+    if (routeView) return;
+    navigate(VIEW_PATHS.home, { replace: true });
   }, [navigate, routeView]);
+
+  useEffect(() => {
+    if (!appData) return;
+    if (view === 'settings') return;
+    if (appData.lifestyleTemplate) return;
+    navigate(`${VIEW_PATHS.settings}?onboarding=1`, { replace: true });
+  }, [appData, navigate, view]);
 
   useEffect(() => {
     if (!user || !appData || appData.userName || !user.name) return;
     updateAppData((prev) => ({ ...prev, userName: user.name }));
   }, [appData, updateAppData, user]);
 
-  if (dataStatus === 'loading') {
-    return <WeeklyPlanSkeleton />;
-  }
+  if (dataStatus === 'loading') return <WeeklyPlanSkeleton />;
 
   if (dataStatus === 'error' || !appData) {
     return (
-      <div className="min-h-screen bg-muted/30 p-[var(--app-page-padding)]">
-        <div className="max-w-xl mx-auto">
-          <StateCard
-            tone="danger"
-            title="読み込みに失敗しました"
-            description={dataError ?? '保存データの読み込みに失敗しました。'}
-            actions={[
-              { label: '再読み込み', onClick: reloadData },
-            ]}
-          />
+      <div className="min-h-screen bg-slate-50 p-6">
+        <div className="mx-auto max-w-md rounded-xl border border-slate-200 bg-white p-4">
+          <h2 className="text-base text-slate-700">読み込みエラー</h2>
+          <p className="mt-2 text-sm text-slate-500">{dataError ?? 'データを読み込めませんでした。'}</p>
+          <button
+            type="button"
+            onClick={reloadData}
+            className="mt-4 rounded-lg bg-sky-600 px-4 py-2 text-sm text-white transition-colors hover:bg-sky-700"
+          >
+            再読み込み
+          </button>
         </div>
         <Toaster />
       </div>
@@ -159,72 +161,58 @@ function AppContent() {
     <AppNavProvider
       value={{
         activeNav,
-        navigateToMyPage,
-        navigateToToday,
-        navigateToWeeklyPlan,
-        navigateToHistory,
+        navigateToHome,
+        navigateToPlan,
         navigateToMaterials,
+        navigateToHistory,
         navigateToSettings,
       }}
     >
-      {view === 'mypage' && (
-        <MyPage
+      {view === 'home' ? (
+        <HomePage
           data={appData}
-          onNavigateSettings={navigateToSettings}
-          onNavigateWeekly={navigateToWeeklyPlan}
-          onNavigateToday={navigateToToday}
+          period={homePeriod}
+          onUpdateData={updateAppData}
+          onNavigatePlan={navigateToPlan}
+          onNavigateSettings={() => navigateToSettings()}
+        />
+      ) : null}
+
+      {view === 'plan' ? (
+        <PlanPage
+          data={appData}
+          period={planPeriod}
+          onChangePeriod={setPlanPeriod}
+          onUpdateData={updateAppData}
           onNavigateMaterials={navigateToMaterials}
+          onNavigateSettings={() => navigateToSettings()}
         />
-      )}
+      ) : null}
 
-      {view === 'today' && (
-        <TodayPage
-          data={appData}
-          period={todayPeriod}
-          onUpdateData={updateAppData}
-          onNavigateWeekly={navigateToWeeklyPlan}
-        />
-      )}
+      {view === 'materials' ? <StockListPage data={appData} onUpdateData={updateAppData} /> : null}
 
-      {view === 'weekly' && (
-        <WeeklyPlanPage
-          data={appData}
-          period={period}
-          onChangePeriod={setPeriod}
-          onUpdateData={updateAppData}
-          onNavigateSettings={navigateToSettings}
-          onNavigateMaterials={navigateToMaterials}
-        />
-      )}
-
-      {view === 'materials' && (
-        <MaterialsPage
-          data={appData}
-          onUpdateData={updateAppData}
-        />
-      )}
-
-      {view === 'history' && (
-        <HistoryPage
+      {view === 'history' ? (
+        <LogPage
           data={appData}
           period={historyPeriod}
           onChangePeriod={setHistoryPeriod}
-          onSelectWeek={(week: PlanWeek) => {
-            setPeriod({ start: week.weekStartDate, end: week.weekEndDate });
-            navigateToWeeklyPlan();
-            toast.message('週計画を開きました');
+          onOpenWeek={(week: PlanWeek) => {
+            setPlanPeriod({ start: week.weekStartDate, end: week.weekEndDate });
+            navigateToPlan();
+            toast.message('この週の計画表を開きました');
           }}
-          onNavigateWeekly={navigateToWeeklyPlan}
+          onNavigatePlan={navigateToPlan}
         />
-      )}
+      ) : null}
 
-      {view === 'settings' && (
+      {view === 'settings' ? (
         <SettingsPage
           data={appData}
           onUpdateData={updateAppData}
           focusSection={settingsFocus}
+          onNavigateHome={navigateToHome}
         />
-      )}
+      ) : null}
 
       <Toaster />
     </AppNavProvider>
@@ -238,10 +226,10 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<PrivateRoute />}>
-            <Route path="/" element={<Navigate to={VIEW_PATHS.weekly} replace />} />
+            <Route path="/" element={<Navigate to={VIEW_PATHS.home} replace />} />
             <Route path="/:view" element={<AppContent />} />
           </Route>
-          <Route path="*" element={<Navigate to={VIEW_PATHS.weekly} replace />} />
+          <Route path="*" element={<Navigate to={VIEW_PATHS.home} replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

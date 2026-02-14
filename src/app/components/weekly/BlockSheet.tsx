@@ -128,7 +128,7 @@ export function BlockSheet({
   }, [duration, time]);
 
   const validationError = useMemo(() => {
-    if (!categoryId) return 'カテゴリを選択してください。';
+    if (!categoryId) return 'タグを選択してください。';
     if (!Number.isFinite(duration)) return '時間の入力が不正です。';
     if (duration <= 0) return '所要時間は0分にできません。';
     if (duration % STEP_MINUTES !== 0) return '所要時間は30分単位で入力してください。';
@@ -190,10 +190,10 @@ export function BlockSheet({
           </div>
 
           <div className="grid gap-2">
-            <Label>カテゴリ *</Label>
+            <Label>タグ *</Label>
             <Select value={categoryId} onValueChange={setCategoryId} disabled={isCategoryLocked}>
               <SelectTrigger>
-                <SelectValue placeholder="カテゴリを選択" />
+                <SelectValue placeholder="タグを選択" />
               </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (
@@ -205,17 +205,17 @@ export function BlockSheet({
             </Select>
             {isCategoryLocked ? (
               <p className="text-xs text-muted-foreground">
-                教材を選ぶとカテゴリは教材に合わせて固定されます。
+                使う本・アプリを選ぶとタグはその設定に合わせて固定されます。
               </p>
             ) : null}
           </div>
         </div>
 
         <div className="grid gap-2">
-          <Label>教材（任意）</Label>
+          <Label>使う本・アプリ（任意）</Label>
           <Select value={materialId} onValueChange={setMaterialId}>
             <SelectTrigger>
-              <SelectValue placeholder="教材を選択" />
+              <SelectValue placeholder="使う本・アプリを選択" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">未選択</SelectItem>
@@ -291,23 +291,23 @@ export function BlockSheet({
         </div>
 
         <div className="grid gap-2">
-          <Label>完了状態</Label>
+          <Label>進み具合</Label>
           <div className="flex items-center gap-3">
             <Switch
               checked={status === 'done'}
               onCheckedChange={(checked) => setStatus(checked ? 'done' : 'planned')}
             />
-            <span className="text-sm text-muted-foreground">{status === 'done' ? '完了' : '予定'}</span>
+            <span className="text-sm text-muted-foreground">{status === 'done' ? 'できた！' : '予定'}</span>
           </div>
         </div>
 
         <div className="grid gap-2 rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
-          <Label>カテゴリを追加</Label>
+          <Label>タグを追加</Label>
           <div className="flex flex-wrap gap-2">
             <Input
               value={newCategoryName}
               onChange={(event) => setNewCategoryName(event.target.value)}
-              placeholder="新しいカテゴリ名"
+              placeholder="新しいタグ名"
             />
             <Button type="button" variant="outline" onClick={handleCreateCategory} disabled={!newCategoryName.trim()}>
               追加
@@ -316,12 +316,12 @@ export function BlockSheet({
           <p className="text-xs text-muted-foreground">追加するとこのブロックにすぐ選択できます。</p>
         </div>
 
-        {validationError && <p className="text-xs text-red-600">{validationError}</p>}
+        {validationError && <p className="text-xs text-orange-700">{validationError}</p>}
       </div>
 
       <DialogFooter className="gap-2">
         {onDelete && (
-          <Button type="button" variant="destructive" onClick={onDelete} className="mr-auto">
+          <Button type="button" variant="outline" onClick={onDelete} className="mr-auto border-orange-200 text-orange-700">
             <Trash2 className="w-4 h-4 mr-2" />
             削除
           </Button>

@@ -1,16 +1,15 @@
 import React from 'react';
 
-export type NavKey = 'mypage' | 'weekly' | 'today' | 'history' | 'materials' | 'settings';
+export type NavKey = 'home' | 'plan' | 'materials' | 'history';
 
 export type SettingsFocus = 'goal';
 
 export type AppNavContextValue = {
   activeNav: NavKey;
-  navigateToMyPage: () => void;
-  navigateToToday: () => void;
-  navigateToWeeklyPlan: () => void;
-  navigateToHistory: () => void;
+  navigateToHome: () => void;
+  navigateToPlan: () => void;
   navigateToMaterials: () => void;
+  navigateToHistory: () => void;
   navigateToSettings: (focus?: SettingsFocus) => void;
 };
 

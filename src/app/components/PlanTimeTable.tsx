@@ -5,6 +5,7 @@ import { Check, Circle, Trash2 } from 'lucide-react';
 import type { Category, Material, PlanItem } from '../types';
 import { cn } from './ui/utils';
 import { minutesToTimeString } from '../utils/time';
+import { STOCK_MIME_TYPE } from '../constants/strings';
 
 interface PlanTimeTableProps {
   items: PlanItem[];
@@ -20,6 +21,7 @@ interface PlanTimeTableProps {
   onRangeSelect?: (dayOfWeek: number, startTime: number, duration: number) => void;
   onItemChange?: (item: PlanItem) => void;
   onItemDelete?: (item: PlanItem) => void;
+  onCreateFromStock?: (materialId: string, dayOfWeek: number, startTime: number) => void;
 }
 
 const DAYS = ['月', '火', '水', '木', '金', '土', '日'];
@@ -213,7 +215,7 @@ function PlanItemBlock({
   const showTimeRange = height >= 48 || forceTimeRange;
   const showStatusText = height >= 36;
 
-  const statusLabel = item.status === 'done' ? '完了' : '予定';
+  const statusLabel = item.status === 'done' ? 'できた！' : '予定';
   const statusIcon = item.status === 'done' ? <Check className="w-3 h-3" /> : <Circle className="w-3 h-3" />;
 
   const categoryName = normalizeLabel(category?.name);
@@ -278,7 +280,7 @@ function PlanItemBlock({
       {canEdit && onDelete ? (
         <button
           type="button"
-          className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/80 text-slate-500 shadow-sm transition-opacity hover:text-rose-600"
+          className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white/80 text-slate-500 shadow-sm transition-opacity hover:text-orange-600"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
@@ -317,6 +319,7 @@ export function PlanTimeTable({
   onRangeSelect,
   onItemChange,
   onItemDelete,
+  onCreateFromStock,
 }: PlanTimeTableProps) {
   const [dragPreview, setDragPreview] = React.useState<DragPreview | null>(null);
   const dragStateRef = React.useRef<DragState | null>(null);
@@ -521,86 +524,131 @@ export function PlanTimeTable({
 
   const startInteraction = (event: React.PointerEvent, item: PlanItem, mode: DragMode) => {
     if (!editable || (item.type !== 'study' && !allowLifestyleEdit)) return;
-    if (event.pointerType === 'touch') return;
     event.preventDefault();
     event.stopPropagation();
-    setSelectedItemId(item.id);
-    setContextMenu(null);
-    tableRef.current?.focus();
 
-    const startAxis = item.startTime < START_MINUTES ? item.startTime + DAY_MINUTES : item.startTime;
-    dragStateRef.current = {
-      mode,
-      item,
-      dayOfWeek: item.dayOfWeek,
-      startX: event.clientX,
-      startY: event.clientY,
-      startAxis,
-      startDuration: item.duration,
-      previewStartTime: item.startTime,
-      previewDuration: item.duration,
-      moved: false,
-    };
-    setDragPreview({
-      id: item.id,
-      dayOfWeek: item.dayOfWeek,
-      startTime: item.startTime,
-      duration: item.duration,
-    });
+    const activateInteraction = (startX: number, startY: number) => {
+      setSelectedItemId(item.id);
+      setContextMenu(null);
+      tableRef.current?.focus();
 
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const state = dragStateRef.current;
-      if (!state) return;
-      const deltaMinutes = Math.round((moveEvent.clientY - state.startY) / SLOT_HEIGHT) * SLOT_MINUTES;
+      const startAxis = item.startTime < START_MINUTES ? item.startTime + DAY_MINUTES : item.startTime;
+      dragStateRef.current = {
+        mode,
+        item,
+        dayOfWeek: item.dayOfWeek,
+        startX,
+        startY,
+        startAxis,
+        startDuration: item.duration,
+        previewStartTime: item.startTime,
+        previewDuration: item.duration,
+        moved: false,
+      };
+      setDragPreview({
+        id: item.id,
+        dayOfWeek: item.dayOfWeek,
+        startTime: item.startTime,
+        duration: item.duration,
+      });
 
-      if (state.mode === 'drag') {
-        const nextAxis = clampAxisStart(state.startAxis + deltaMinutes);
-        const nextStart = nextAxis % DAY_MINUTES;
-        const nextDay = dayIndexFromPointer(moveEvent.clientX);
-        if (typeof nextDay === 'number') {
-          state.dayOfWeek = nextDay;
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        const state = dragStateRef.current;
+        if (!state) return;
+        const deltaMinutes = Math.round((moveEvent.clientY - state.startY) / SLOT_HEIGHT) * SLOT_MINUTES;
+
+        if (state.mode === 'drag') {
+          const nextAxis = clampAxisStart(state.startAxis + deltaMinutes);
+          const nextStart = nextAxis % DAY_MINUTES;
+          const nextDay = dayIndexFromPointer(moveEvent.clientX);
+          if (typeof nextDay === 'number') {
+            state.dayOfWeek = nextDay;
+          }
+          state.previewStartTime = nextStart;
+          state.previewDuration = state.startDuration;
+          setDragPreview({
+            id: state.item.id,
+            dayOfWeek: state.dayOfWeek,
+            startTime: nextStart,
+            duration: state.startDuration,
+          });
+        } else {
+          const nextDuration = clampDuration(state.startAxis, state.startDuration + deltaMinutes);
+          state.previewStartTime = state.item.startTime;
+          state.previewDuration = nextDuration;
+          setDragPreview({
+            id: state.item.id,
+            dayOfWeek: state.dayOfWeek,
+            startTime: state.item.startTime,
+            duration: nextDuration,
+          });
         }
-        state.previewStartTime = nextStart;
-        state.previewDuration = state.startDuration;
-        setDragPreview({
-          id: state.item.id,
-          dayOfWeek: state.dayOfWeek,
-          startTime: nextStart,
-          duration: state.startDuration,
-        });
-      } else {
-        const nextDuration = clampDuration(state.startAxis, state.startDuration + deltaMinutes);
-        state.previewStartTime = state.item.startTime;
-        state.previewDuration = nextDuration;
-        setDragPreview({
-          id: state.item.id,
-          dayOfWeek: state.dayOfWeek,
-          startTime: state.item.startTime,
-          duration: nextDuration,
-        });
-      }
-      state.moved = true;
+        state.moved = true;
+      };
+
+      const handlePointerUp = () => {
+        const state = dragStateRef.current;
+        if (state?.moved && onItemChange) {
+          onItemChange({
+            ...state.item,
+            dayOfWeek: state.dayOfWeek,
+            startTime: state.previewStartTime,
+            duration: state.previewDuration,
+          });
+          lastDragAtRef.current = Date.now();
+        }
+        dragStateRef.current = null;
+        setDragPreview(null);
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+      };
+
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
     };
 
-    const handlePointerUp = () => {
-      const state = dragStateRef.current;
-      if (state?.moved && onItemChange) {
-        onItemChange({
-          ...state.item,
-          dayOfWeek: state.dayOfWeek,
-          startTime: state.previewStartTime,
-          duration: state.previewDuration,
-        });
-        lastDragAtRef.current = Date.now();
-      }
-      dragStateRef.current = null;
-      setDragPreview(null);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+    if (event.pointerType !== 'touch') {
+      activateInteraction(event.clientX, event.clientY);
+      return;
+    }
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let started = false;
+    const detachTouchPreHandlers = () => {
+      window.removeEventListener('pointermove', handleTouchMove);
+      window.removeEventListener('pointerup', handleTouchUp);
+      window.removeEventListener('pointercancel', handleTouchUp);
+    };
+    const holdTimer = window.setTimeout(() => {
+      started = true;
+      detachTouchPreHandlers();
+      activateInteraction(startX, startY);
+    }, 220);
+
+    const cancelBeforeStart = () => {
+      window.clearTimeout(holdTimer);
+      detachTouchPreHandlers();
     };
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
+    const handleTouchMove = (moveEvent: PointerEvent) => {
+      if (started) return;
+      const dx = Math.abs(moveEvent.clientX - startX);
+      const dy = Math.abs(moveEvent.clientY - startY);
+      if (dx > 8 || dy > 8) {
+        cancelBeforeStart();
+      }
+    };
+
+    const handleTouchUp = () => {
+      if (!started) {
+        cancelBeforeStart();
+      }
+    };
+
+    window.addEventListener('pointermove', handleTouchMove);
+    window.addEventListener('pointerup', handleTouchUp);
+    window.addEventListener('pointercancel', handleTouchUp);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -769,6 +817,19 @@ export function PlanTimeTable({
                     onMouseEnter={() => {
                       hoverSlotRef.current = { dayOfWeek: dayIndex, startTime: slot.startTime % DAY_MINUTES };
                     }}
+                    onDragOver={(event) => {
+                      if (!editable || !onCreateFromStock) return;
+                      const materialId = event.dataTransfer.getData(STOCK_MIME_TYPE);
+                      if (!materialId) return;
+                      event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      if (!editable || !onCreateFromStock) return;
+                      const materialId = event.dataTransfer.getData(STOCK_MIME_TYPE);
+                      if (!materialId) return;
+                      event.preventDefault();
+                      onCreateFromStock(materialId, dayIndex, slot.startTime % DAY_MINUTES);
+                    }}
                     onPointerDown={(event) => startSelection(event, dayIndex, slot.startTime)}
                     onContextMenu={(event) => {
                       if (!editable) return;
@@ -916,7 +977,7 @@ export function PlanTimeTable({
               {contextMenu.item.type === 'study' || allowLifestyleEdit ? (
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-orange-700 hover:bg-orange-50"
                   onClick={() => {
                     setContextMenu(null);
                     onItemDelete?.(contextMenu.item);

@@ -1,299 +1,115 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, BookOpen, CalendarCheck, CalendarDays, History, LayoutGrid, Menu, Settings } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { BookOpen, CalendarDays, Footprints, Home, Settings } from 'lucide-react';
 
 import { cn } from '../ui/utils';
-import { Button } from '../ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../ui/sheet';
-import { useIsMobile } from '../ui/use-mobile';
-import { useAuth } from '../auth/AuthContext';
+import { UI_TEXT } from '../../constants/strings';
 import { useAppNav, type NavKey } from './AppNavContext';
 
-type NavItem = {
+type TabItem = {
   key: NavKey;
   label: string;
   icon: React.ReactNode;
   onSelect: () => void;
 };
 
-const SIDEBAR_COLLAPSED_KEY = 'study-manager:sidebar-collapsed';
-
 export function AppChrome({
   title,
-  back,
   actions,
   subHeader,
   children,
   mainClassName,
+  showSettings = false,
+  hideBottomNav = false,
 }: {
   title: string;
-  back?: { label: string; onClick: () => void };
   actions?: React.ReactNode;
   subHeader?: React.ReactNode;
   children: React.ReactNode;
   mainClassName?: string;
+  showSettings?: boolean;
+  hideBottomNav?: boolean;
 }) {
-  const { user, signOut } = useAuth();
-  const isMobile = useIsMobile();
   const {
     activeNav,
-    navigateToMyPage,
-    navigateToToday,
-    navigateToWeeklyPlan,
-    navigateToHistory,
+    navigateToHome,
+    navigateToPlan,
     navigateToMaterials,
+    navigateToHistory,
     navigateToSettings,
   } = useAppNav();
-  const subHeaderSlot = subHeader ?? null;
-  const hasSubHeader = Boolean(subHeader);
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const headerRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, sidebarCollapsed ? '1' : '0');
-    } catch {
-      // ignore
-    }
-  }, [sidebarCollapsed]);
-
-  useEffect(() => {
-    if (!isMobile) setMobileNavOpen(false);
-  }, [isMobile]);
-
-  useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-
-    const update = () => {
-      const height = Math.ceil(el.getBoundingClientRect().height);
-      document.documentElement.style.setProperty('--app-chrome-sticky-top', `${height}px`);
-    };
-
-    update();
-
-    if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(update);
-      ro.observe(el);
-      return () => ro.disconnect();
-    }
-
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, [actions, subHeader, sidebarCollapsed]);
-
-  const navItems = useMemo<NavItem[]>(
+  const tabs = useMemo<TabItem[]>(
     () => [
-      { key: 'weekly', label: '今週の計画', icon: <CalendarDays className="w-4 h-4" />, onSelect: navigateToWeeklyPlan },
-      { key: 'today', label: '今日の予定', icon: <CalendarCheck className="w-4 h-4" />, onSelect: navigateToToday },
-      { key: 'mypage', label: 'マイページ', icon: <LayoutGrid className="w-4 h-4" />, onSelect: navigateToMyPage },
-      { key: 'history', label: '学習の実績', icon: <History className="w-4 h-4" />, onSelect: navigateToHistory },
-      { key: 'materials', label: '教材管理', icon: <BookOpen className="w-4 h-4" />, onSelect: navigateToMaterials },
-      { key: 'settings', label: '設定', icon: <Settings className="w-4 h-4" />, onSelect: navigateToSettings },
+      { key: 'home', label: UI_TEXT.NAV_HOME, icon: <Home className="h-4 w-4" />, onSelect: navigateToHome },
+      { key: 'plan', label: UI_TEXT.NAV_PLAN, icon: <CalendarDays className="h-4 w-4" />, onSelect: navigateToPlan },
+      {
+        key: 'materials',
+        label: UI_TEXT.NAV_MATERIALS,
+        icon: <BookOpen className="h-4 w-4" />,
+        onSelect: navigateToMaterials,
+      },
+      {
+        key: 'history',
+        label: UI_TEXT.NAV_HISTORY,
+        icon: <Footprints className="h-4 w-4" />,
+        onSelect: navigateToHistory,
+      },
     ],
-    [navigateToHistory, navigateToMaterials, navigateToMyPage, navigateToSettings, navigateToToday, navigateToWeeklyPlan],
+    [navigateToHistory, navigateToHome, navigateToMaterials, navigateToPlan],
   );
-
-  const toggleNav = () => {
-    if (isMobile) {
-      setMobileNavOpen(true);
-      return;
-    }
-    setSidebarCollapsed((v) => !v);
-  };
-
-  const renderNav = (variant: 'desktop' | 'mobile') => (
-    <nav className={cn('space-y-1', variant === 'desktop' ? 'p-2' : 'p-2')}>
-      {navItems.map((item) => {
-        const isActive = item.key === activeNav;
-        return (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => {
-              item.onSelect();
-              if (variant === 'mobile') setMobileNavOpen(false);
-            }}
-            className={cn(
-              'w-full flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-accent-foreground transition-colors duration-150',
-              isActive ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' : '',
-              variant === 'desktop' && sidebarCollapsed ? 'justify-center px-2' : '',
-            )}
-            title={variant === 'desktop' && sidebarCollapsed ? item.label : undefined}
-            aria-current={isActive ? 'page' : undefined}
-          >
-            <span className={cn('flex-shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')}>{item.icon}</span>
-            {variant === 'desktop' && sidebarCollapsed ? null : <span className="truncate">{item.label}</span>}
-          </button>
-        );
-      })}
-    </nav>
-  );
-
-  const initials = user?.name
-    ? user.name
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join('')
-    : user?.email?.[0]?.toUpperCase() ?? '?';
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
-        <aside
-          className={cn(
-            'hidden md:flex md:flex-col bg-card border-r border-border',
-            sidebarCollapsed ? 'w-14' : 'w-56',
-          )}
-        >
-          <div
-            className={cn(
-              'h-[var(--app-header-height)] flex items-center gap-2 px-3 border-b border-border',
-              sidebarCollapsed ? 'justify-center' : '',
-            )}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleNav}
-              className="hidden md:inline-flex"
-              aria-label="メニューを開く"
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f9fdff_0%,#f7fafc_44%,#ffffff_100%)]">
+      <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/92 backdrop-blur-sm">
+        <div className="mx-auto flex h-[56px] w-full max-w-[var(--app-content-max)] items-center gap-2 px-4">
+          <h1 className="min-w-0 flex-1 truncate text-[18px] font-medium text-slate-700">{title}</h1>
+          {actions}
+          {showSettings ? (
+            <button
+              type="button"
+              aria-label={UI_TEXT.LABEL_SETTINGS}
+              onClick={() => navigateToSettings()}
+              className="rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
             >
-              <Menu className="w-5 h-5" />
-            </Button>
-          </div>
-          {renderNav('desktop')}
-        </aside>
-
-        <div className="flex-1 min-w-0">
-          <header
-            ref={headerRef}
-            className="sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b border-border shadow-sm"
-          >
-            <div className="w-full px-4 md:px-6">
-              <div className="h-[var(--app-header-height)] flex items-center justify-between gap-3">
-                <div className="flex-1 flex items-center gap-2 min-w-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleNav}
-                    aria-label="メニューを開く"
-                    className="md:hidden"
-                  >
-                    <Menu className="w-5 h-5" />
-                  </Button>
-
-                  {back ? (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={back.onClick}
-                        className="md:hidden"
-                        aria-label={back.label}
-                      >
-                        <ArrowLeft className="w-5 h-5" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={back.onClick} className="hidden md:inline-flex">
-                        {back.label}
-                      </Button>
-                    </>
-                  ) : null}
-
-                  <div className="min-w-0">
-                    <div className="text-base md:text-lg font-semibold text-foreground truncate">{title}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0 max-w-[60vw] overflow-x-auto">
-                  {user ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="flex items-center gap-2 rounded-full border border-border bg-background px-2 py-1 text-xs text-foreground shadow-sm"
-                        >
-                          <Avatar className="size-7">
-                            <AvatarImage src={user.picture} alt={user.name ?? user.email ?? 'user'} />
-                            <AvatarFallback className="text-[10px] font-semibold">{initials}</AvatarFallback>
-                          </Avatar>
-                          <span className="hidden sm:inline text-muted-foreground">
-                            {user.name ?? user.email ?? 'Googleユーザー'}
-                          </span>
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuLabel className="text-xs text-muted-foreground">サインイン中</DropdownMenuLabel>
-                        <div className="px-2 py-1 text-sm font-medium text-foreground">
-                          {user.name ?? 'Googleユーザー'}
-                        </div>
-                        {user.email ? (
-                          <div className="px-2 pb-2 text-xs text-muted-foreground">{user.email}</div>
-                        ) : null}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            signOut();
-                          }}
-                        >
-                          ログアウト
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : null}
-                  {actions}
-                </div>
-              </div>
-            </div>
-
-            {hasSubHeader ? (
-              <div className="border-t border-border">
-              <div className="w-full px-4 md:px-6">
-                <div className="min-h-[var(--app-subheader-height)] flex items-center">
-                  {subHeaderSlot}
-                </div>
-              </div>
-            </div>
+              <Settings className="h-5 w-5" />
+            </button>
           ) : null}
-          </header>
-
-          <main>
-            <div className={cn('w-full p-[var(--app-page-padding)]', mainClassName)}>
-              {children}
-            </div>
-          </main>
         </div>
-      </div>
+        {subHeader ? (
+          <div className="border-t border-slate-100/80">
+            <div className="mx-auto w-full max-w-[var(--app-content-max)] px-4 py-2">{subHeader}</div>
+          </div>
+        ) : null}
+      </header>
 
-      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="p-0 w-[18rem]">
-          <SheetHeader className="p-4 border-b border-border">
-            <SheetTitle>メニュー</SheetTitle>
-          </SheetHeader>
-          {renderNav('mobile')}
-        </SheetContent>
-      </Sheet>
+      <main className={cn('pb-[92px] pt-4', hideBottomNav ? 'pb-6' : '', mainClassName)}>
+        <div className="mx-auto w-full max-w-[var(--app-content-max)] px-4">{children}</div>
+      </main>
+
+      {!hideBottomNav ? (
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 backdrop-blur-sm">
+          <div className="mx-auto grid h-[76px] w-full max-w-[var(--app-content-max)] grid-cols-4 px-2 pb-[max(env(safe-area-inset-bottom),0px)]">
+            {tabs.map((tab) => {
+              const isActive = tab.key === activeNav;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={tab.onSelect}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-1 rounded-xl text-[11px] transition-colors',
+                    isActive ? 'text-sky-600' : 'text-slate-400 hover:text-slate-600',
+                  )}
+                >
+                  <span className={cn('rounded-full p-1.5', isActive ? 'bg-sky-100' : '')}>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      ) : null}
     </div>
   );
 }

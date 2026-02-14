@@ -26,7 +26,6 @@ export function formatDisplayFromISO(value: string | null | undefined): string {
   if (!value) return '-';
   const parsed = safeParseISO(value);
   if (!parsed) return '-';
-
   const isDateTime = value.includes('T');
   return isDateTime ? formatDisplayDateTime(parsed) : formatDisplayDate(parsed);
 }
@@ -35,7 +34,7 @@ export function formatPeriod(start: string, end: string): string {
   const startDate = safeParseISO(start);
   const endDate = safeParseISO(end);
   if (startDate && endDate) {
-    return `${formatDisplayDate(startDate)}〜${formatDisplayDate(endDate)}`;
+    return `${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}`;
   }
-  return `${start}〜${end}`;
+  return `${start} - ${end}`;
 }

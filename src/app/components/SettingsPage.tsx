@@ -1,23 +1,20 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { AppData, LifestyleTemplate } from '../types';
 import { createDefaultLifestyleTemplate } from '../data/appDataStore';
-import { formatMinutes } from '../utils/time';
+import { computeAvailableMinutes } from '../utils/plan';
+import { UI_TEXT } from '../constants/strings';
 import { AppChrome } from './layout/AppChrome';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { LifestyleForm } from './LifestyleForm';
-import { PageHeader } from './ui/page-header';
-import { PageLayout } from './ui/page-layout';
-import { StatCard } from './ui/stat-card';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 
-function clampMinute(value: unknown, fallback: number) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
-  const rounded = Math.round(value);
-  return Math.max(0, Math.min(1439, rounded));
+function formatDuration(minutes: number): string {
+  const safe = Math.max(0, Math.round(minutes));
+  const h = Math.floor(safe / 60);
+  const m = safe % 60;
+  if (h === 0) return `${m}分`;
+  if (m === 0) return `${h}時間`;
+  return `${h}時間${m}分`;
 }
 
 function normalizeDateInput(value?: string) {
@@ -25,191 +22,161 @@ function normalizeDateInput(value?: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : '';
 }
 
-function normalizeLifestyleTemplate(template?: LifestyleTemplate): LifestyleTemplate {
+function normalizeTemplate(template?: LifestyleTemplate): LifestyleTemplate {
   const base = createDefaultLifestyleTemplate();
-  const weekdaySleep = {
-    startTime: clampMinute(template?.weekdaySleep?.startTime, base.weekdaySleep.startTime),
-    endTime: clampMinute(template?.weekdaySleep?.endTime, base.weekdaySleep.endTime),
-  };
-
-  const weekendSleep = template?.weekendSleep
-    ? {
-        startTime: clampMinute(template.weekendSleep.startTime, base.weekdaySleep.startTime),
-        endTime: clampMinute(template.weekendSleep.endTime, base.weekdaySleep.endTime),
-      }
-    : undefined;
-
-  const optionalBlocks = (Array.isArray(template?.optionalBlocks) ? template.optionalBlocks : [])
-    .filter((block): block is NonNullable<typeof block> => Boolean(block))
-    .map((block, index) => {
-      const days =
-        Array.isArray(block.daysOfWeek) && block.daysOfWeek.length > 0
-          ? block.daysOfWeek.filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
-          : [0];
-      return {
-        id: block.id || `lb_${Date.now()}_${index}`,
-        label: block.label ?? '固定予定',
-        daysOfWeek: days.length > 0 ? days : [0],
-        startTime: clampMinute(block.startTime, 19 * 60),
-        duration: Math.max(30, Math.min(24 * 60, Math.round(block.duration || 60))),
-        categoryId: block.categoryId,
-      };
-    });
+  if (!template) return base;
 
   return {
     ...base,
     ...template,
-    weekdaySleep,
-    weekendEnabled: Boolean(template?.weekendEnabled),
-    weekendSleep,
-    optionalBlocks,
-    updatedAt: template?.updatedAt ?? base.updatedAt,
+    weekdaySleep: {
+      startTime: Number.isFinite(template.weekdaySleep?.startTime) ? template.weekdaySleep.startTime : base.weekdaySleep.startTime,
+      endTime: Number.isFinite(template.weekdaySleep?.endTime) ? template.weekdaySleep.endTime : base.weekdaySleep.endTime,
+    },
+    optionalBlocks: Array.isArray(template.optionalBlocks) ? template.optionalBlocks : [],
   };
-}
-
-function getLifestyleDurationMinutes(startTime: number, endTime: number) {
-  if (startTime === endTime) return 0;
-  if (endTime < startTime) return endTime + 1440 - startTime;
-  return endTime - startTime;
-}
-
-function computeAvailableMinutes(template: LifestyleTemplate | undefined) {
-  if (!template) return 0;
-  const totalWeekMinutes = 7 * 24 * 60;
-  let lifestyleMinutes = 0;
-  for (let day = 0; day < 7; day += 1) {
-    const isWeekend = day === 5 || day === 6;
-    const sleep = template.weekendEnabled && isWeekend && template.weekendSleep ? template.weekendSleep : template.weekdaySleep;
-    lifestyleMinutes += getLifestyleDurationMinutes(sleep.startTime, sleep.endTime);
-  }
-  lifestyleMinutes += template.optionalBlocks.reduce((sum, block) => {
-    const count = Array.isArray(block.daysOfWeek) ? block.daysOfWeek.length : 0;
-    return sum + block.duration * count;
-  }, 0);
-  return Math.max(0, totalWeekMinutes - lifestyleMinutes);
 }
 
 export function SettingsPage({
   data,
   onUpdateData,
   focusSection,
+  onNavigateHome,
 }: {
   data: AppData;
   onUpdateData: (updater: (prev: AppData) => AppData) => void;
   focusSection?: 'goal' | null;
+  onNavigateHome?: () => void;
 }) {
-  const [draft, setDraft] = useState<LifestyleTemplate>(() => normalizeLifestyleTemplate(data.lifestyleTemplate));
+  const [draft, setDraft] = useState<LifestyleTemplate>(() => normalizeTemplate(data.lifestyleTemplate));
   const [userName, setUserName] = useState(data.userName ?? '');
-  const [goalTitle, setGoalTitle] = useState(data.userGoalTitle ?? '');
-  const [goalDeadline, setGoalDeadline] = useState(normalizeDateInput(data.userGoalDeadline));
-  const goalSectionRef = useRef<HTMLDivElement | null>(null);
+  const [themeTitle, setThemeTitle] = useState(data.userGoalTitle ?? '');
+  const [themeDeadline, setThemeDeadline] = useState(normalizeDateInput(data.userGoalDeadline));
+  const [introOpen, setIntroOpen] = useState(false);
+  const [introText, setIntroText] = useState('');
+
+  const themeRef = useRef<HTMLDivElement | null>(null);
+  const isFirstSetup = !data.lifestyleTemplate;
   const todayIso = new Date().toISOString().split('T')[0];
 
-  const safeDraft = normalizeLifestyleTemplate(draft);
-
   useEffect(() => {
-    setDraft(normalizeLifestyleTemplate(data.lifestyleTemplate));
+    setDraft(normalizeTemplate(data.lifestyleTemplate));
     setUserName(data.userName ?? '');
-    setGoalTitle(data.userGoalTitle ?? '');
-    setGoalDeadline(normalizeDateInput(data.userGoalDeadline));
+    setThemeTitle(data.userGoalTitle ?? '');
+    setThemeDeadline(normalizeDateInput(data.userGoalDeadline));
   }, [data.lifestyleTemplate, data.userGoalDeadline, data.userGoalTitle, data.userName]);
 
   useEffect(() => {
     if (focusSection !== 'goal') return;
-    const target = goalSectionRef.current;
-    if (!target) return;
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    themeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [focusSection]);
 
-  const handleSave = () => {
-    if (safeDraft.weekdaySleep.startTime === safeDraft.weekdaySleep.endTime) {
-      toast.error('平日の睡眠時間を正しく設定してください');
-      return;
-    }
+  const availableMinutes = useMemo(() => computeAvailableMinutes(draft), [draft]);
+  const lifestyleReady = draft.weekdaySleep.startTime !== draft.weekdaySleep.endTime;
+
+  const save = () => {
+    if (!lifestyleReady) return;
+
     onUpdateData((prev) => ({
       ...prev,
-      lifestyleTemplate: { ...safeDraft, updatedAt: new Date().toISOString() },
+      lifestyleTemplate: { ...draft, updatedAt: new Date().toISOString() },
       userName: userName.trim() || undefined,
-      userGoalTitle: goalTitle.trim() || undefined,
-      userGoalDeadline: goalDeadline || undefined,
+      userGoalTitle: themeTitle.trim() || undefined,
+      userGoalDeadline: themeDeadline || undefined,
     }));
-    toast.success('設定を保存しました');
+
+    if (isFirstSetup) {
+      setIntroText(`今週は ${formatDuration(availableMinutes)} も自由時間があります！`);
+      setIntroOpen(true);
+      return;
+    }
   };
 
-  const lifestyleReady = Boolean(
-    safeDraft.weekdaySleep && safeDraft.weekdaySleep.startTime !== safeDraft.weekdaySleep.endTime,
-  );
-  const availableMinutes = computeAvailableMinutes(safeDraft);
-
   return (
-    <AppChrome title="設定" actions={null}>
-      <PageLayout>
-        <PageHeader
-          title="設定"
-          description="生活時間とユーザー設定をまとめて管理します。"
-          action={<Button onClick={handleSave}>保存</Button>}
-        />
+    <AppChrome title={UI_TEXT.LABEL_SETTINGS} hideBottomNav>
+      <div className="space-y-4 pb-4">
+        <section className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-slate-700">まずは生活時間を決めましょう</p>
+              <p className="text-xs text-slate-500">完璧な計画より、続けやすい余白をつくる設定です。</p>
+            </div>
+            <button
+              type="button"
+              onClick={save}
+              className="rounded-lg bg-sky-600 px-4 py-2 text-sm text-white hover:bg-sky-700"
+            >
+              保存
+            </button>
+          </div>
+          <div className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-700">
+            設定から見た自由時間: {lifestyleReady ? formatDuration(availableMinutes) : '未設定'}
+          </div>
+        </section>
 
-        <StatCard
-          label="この設定から算出される学習可能時間（目安）"
-          value={lifestyleReady ? `最大 ${formatMinutes(availableMinutes)}` : '未設定'}
-          helper="生活時間から算出した目安です。"
-          valueClassName={lifestyleReady ? undefined : 'text-base text-muted-foreground font-medium'}
-        />
+        <section className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <h2 className="text-sm text-slate-700">生活時間</h2>
+          <p className="mb-3 text-xs text-slate-500">睡眠時間と固定予定を先に入れると、計画がぐっと楽になります。</p>
+          <LifestyleForm value={draft} categories={data.categories} onChange={(next) => setDraft(normalizeTemplate(next))} />
+        </section>
 
-        <div ref={goalSectionRef}>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-foreground">目標・ユーザー設定</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                目標名と期限を入れると、マイページの進捗表示がわかりやすくなります。
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label>表示名</Label>
-                  <Input
-                    value={userName}
-                    onChange={(event) => setUserName(event.target.value)}
-                    placeholder="例：田中 花子"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>目標名（任意）</Label>
-                  <Input
-                    value={goalTitle}
-                    onChange={(event) => setGoalTitle(event.target.value)}
-                    placeholder="例：TOEIC 800"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>期限（任意）</Label>
-                  <Input
-                    type="date"
-                    min={todayIso}
-                    value={goalDeadline}
-                    onChange={(event) => setGoalDeadline(normalizeDateInput(event.target.value))}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                目標は週計画の判断材料として表示されます（MVPのため最低限の項目のみ扱います）。
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <section ref={themeRef} className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <h2 className="text-sm text-slate-700">{UI_TEXT.LABEL_WEEK_THEME}・プロフィール</h2>
+          <p className="mb-3 text-xs text-slate-500">必要なときだけ、ゆるく設定してください。</p>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-semibold text-foreground">生活時間（学習可能時間の計算）</CardTitle>
-            <p className="text-sm text-muted-foreground">学習可能時間の計算に使用されます。</p>
-          </CardHeader>
-          <CardContent>
-            <LifestyleForm value={safeDraft} categories={data.categories} onChange={(next) => setDraft(normalizeLifestyleTemplate(next))} />
-          </CardContent>
-        </Card>
-      </PageLayout>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1 text-sm text-slate-600">
+              表示名
+              <input
+                value={userName}
+                onChange={(event) => setUserName(event.target.value)}
+                placeholder="例: さくら"
+                className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-sky-300"
+              />
+            </label>
+            <label className="grid gap-1 text-sm text-slate-600">
+              {UI_TEXT.LABEL_WEEK_THEME}
+              <input
+                value={themeTitle}
+                onChange={(event) => setThemeTitle(event.target.value)}
+                placeholder="例: 毎日20分だけ続ける"
+                className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-sky-300"
+              />
+            </label>
+            <label className="grid gap-1 text-sm text-slate-600">
+              期限（任意）
+              <input
+                type="date"
+                min={todayIso}
+                value={themeDeadline}
+                onChange={(event) => setThemeDeadline(normalizeDateInput(event.target.value))}
+                className="h-10 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-sky-300"
+              />
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <Dialog open={introOpen} onOpenChange={setIntroOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>設定ができました</DialogTitle>
+            <DialogDescription>{introText}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => {
+                setIntroOpen(false);
+                onNavigateHome?.();
+              }}
+              className="rounded-lg bg-sky-600 px-3 py-2 text-sm text-white hover:bg-sky-700"
+            >
+              ホームへ
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppChrome>
   );
 }

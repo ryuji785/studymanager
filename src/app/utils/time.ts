@@ -18,9 +18,9 @@ export function timeStringToMinutes(value: string): number {
 }
 
 export function minutesToTimeString(minutes: number): string {
-  const display = minutes % 1440;
-  const h = Math.floor(display / 60) % 24;
-  const m = display % 60;
+  const normalized = ((minutes % 1440) + 1440) % 1440;
+  const h = Math.floor(normalized / 60);
+  const m = normalized % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
