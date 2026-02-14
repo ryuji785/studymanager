@@ -149,7 +149,7 @@ export function WeekSummary({
                 </div>
               </PopoverContent>
             </Popover>
-            <Button variant="outline" size="sm" onClick={onNavigateSettings}>
+            <Button variant="outline" size="sm" onClick={() => onNavigateSettings()}>
               生活時間を編集
             </Button>
             {showTodayToggle ? (

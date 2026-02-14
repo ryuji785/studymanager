@@ -477,7 +477,7 @@ export function WeeklyPlanPage({
       toast.message('生活時間が未設定のため、学習可能時間は仮の表示になります。', {
         action: {
           label: '設定する',
-          onClick: onNavigateSettings,
+          onClick: () => onNavigateSettings(),
         },
       });
       setLifestyleNoticeShown(true);

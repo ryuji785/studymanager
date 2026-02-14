@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { addWeeks, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -24,13 +24,48 @@ import { formatIsoDate } from './utils/date';
 
 type View = 'mypage' | 'weekly' | 'today' | 'history' | 'materials' | 'settings';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+const isServerAuthEnabled = Boolean(API_BASE_URL);
+const VIEW_PATHS: Record<View, string> = {
+  mypage: '/mypage',
+  weekly: '/weekly',
+  today: '/today',
+  history: '/history',
+  materials: '/materials',
+  settings: '/settings',
+};
+
+function getViewFromParam(value?: string): View | null {
+  if (value === 'mypage') return 'mypage';
+  if (value === 'weekly') return 'weekly';
+  if (value === 'today') return 'today';
+  if (value === 'history') return 'history';
+  if (value === 'materials') return 'materials';
+  if (value === 'settings') return 'settings';
+  return null;
+}
+
 function AppContent() {
-  const { user, isAuthenticated } = useAuth();
-  const [view, setView] = useState<View>('weekly');
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { view: routeViewParam } = useParams<{ view?: string }>();
+
+  const routeView = useMemo(() => getViewFromParam(routeViewParam), [routeViewParam]);
+  const view = routeView ?? 'weekly';
+
   const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [dataError, setDataError] = useState<string | null>(null);
   const [appData, setAppData] = useState<AppData | null>(null);
-  const [settingsFocus, setSettingsFocus] = useState<SettingsFocus | null>(null);
+
+  const settingsFocus = useMemo<SettingsFocus | null>(() => {
+    try {
+      const focus = new URLSearchParams(location.search).get('focus');
+      return focus === 'goal' ? 'goal' : null;
+    } catch {
+      return null;
+    }
+  }, [location.search]);
 
   const currentWeek = useMemo(() => getWeekRange(new Date()), []);
   const [period, setPeriod] = useState({ start: currentWeek.weekStart, end: currentWeek.weekEnd });
@@ -43,35 +78,31 @@ function AppContent() {
     end: currentWeek.weekEnd,
   }));
 
-  const activeNav = useMemo<NavKey>(() => {
-    if (view === 'mypage') return 'mypage';
-    if (view === 'materials') return 'materials';
-    if (view === 'settings') return 'settings';
-    if (view === 'history') return 'history';
-    if (view === 'today') return 'today';
-    return 'weekly';
-  }, [view]);
+  const activeNav = useMemo<NavKey>(() => view, [view]);
 
-  const navigateToMyPage = () => setView('mypage');
-  const navigateToToday = () => setView('today');
-  const navigateToWeeklyPlan = () => setView('weekly');
-  const navigateToHistory = () => setView('history');
-  const navigateToMaterials = () => setView('materials');
-  const navigateToSettings = (focus?: SettingsFocus) => {
-    setSettingsFocus(focus ?? null);
-    setView('settings');
-  };
+  const navigateToMyPage = useCallback(() => navigate(VIEW_PATHS.mypage), [navigate]);
+  const navigateToToday = useCallback(() => navigate(VIEW_PATHS.today), [navigate]);
+  const navigateToWeeklyPlan = useCallback(() => navigate(VIEW_PATHS.weekly), [navigate]);
+  const navigateToHistory = useCallback(() => navigate(VIEW_PATHS.history), [navigate]);
+  const navigateToMaterials = useCallback(() => navigate(VIEW_PATHS.materials), [navigate]);
+  const navigateToSettings = useCallback(
+    (focus?: SettingsFocus) => {
+      const safeFocus = focus === 'goal' ? 'goal' : null;
+      navigate(safeFocus ? `${VIEW_PATHS.settings}?focus=${safeFocus}` : VIEW_PATHS.settings);
+    },
+    [navigate],
+  );
 
-  const updateAppData = (updater: (prev: AppData) => AppData) => {
+  const updateAppData = useCallback((updater: (prev: AppData) => AppData) => {
     setAppData((prev) => {
       if (!prev) return prev;
       const next = updater(prev);
       saveAppData(next);
       return next;
     });
-  };
+  }, []);
 
-  const reloadData = () => {
+  const reloadData = useCallback(() => {
     setDataStatus('loading');
     setDataError(null);
     try {
@@ -83,12 +114,19 @@ function AppContent() {
       setDataError(error instanceof Error ? error.message : '読み込みに失敗しました');
       setDataStatus('error');
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (isAuthLoading) return;
+    if (isServerAuthEnabled && !isAuthenticated) return;
     reloadData();
-  }, [isAuthenticated]);
+  }, [isAuthLoading, isAuthenticated, reloadData]);
+
+  useEffect(() => {
+    if (!routeView) {
+      navigate(VIEW_PATHS.weekly, { replace: true });
+    }
+  }, [navigate, routeView]);
 
   useEffect(() => {
     if (!user || !appData || appData.userName || !user.name) return;
@@ -173,7 +211,7 @@ function AppContent() {
           onChangePeriod={setHistoryPeriod}
           onSelectWeek={(week: PlanWeek) => {
             setPeriod({ start: week.weekStartDate, end: week.weekEndDate });
-            setView('weekly');
+            navigateToWeeklyPlan();
             toast.message('週計画を開きました');
           }}
           onNavigateWeekly={navigateToWeeklyPlan}
@@ -200,9 +238,10 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<PrivateRoute />}>
-            <Route path="/" element={<AppContent />} />
+            <Route path="/" element={<Navigate to={VIEW_PATHS.weekly} replace />} />
+            <Route path="/:view" element={<AppContent />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to={VIEW_PATHS.weekly} replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

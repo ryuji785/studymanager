@@ -1,17 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, CheckCircle2, Clock, NotebookPen } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Calendar, CheckCircle2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 import type { AppData, PlanItem } from '../types';
-import { formatMinutes, minutesToTimeString, normalizeDisplayRange } from '../utils/time';
-import { getWeekLifestyleItemsFromData, weekIdFromStart } from '../utils/plan';
+import { formatMinutes, minutesToTimeString } from '../utils/time';
+import { weekIdFromStart } from '../utils/plan';
 import { AppChrome } from './layout/AppChrome';
 import { PageLayout } from './ui/page-layout';
 import { PageHeader } from './ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { EmptyState } from './ui/empty-state';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
@@ -24,6 +23,12 @@ type TodaySegment =
   | { kind: 'item'; start: number; item: PlanItem }
   | { kind: 'gap'; start: number; duration: number };
 
+function toDisplayStart(startTime: number) {
+  if (startTime >= 1440) return startTime;
+  if (startTime < START_MINUTES) return startTime + 1440;
+  return startTime;
+}
+
 function formatTimeRange(startTime: number, duration: number) {
   const endTime = startTime + duration;
   return `${minutesToTimeString(startTime)}〜${minutesToTimeString(endTime)}`;
@@ -34,7 +39,8 @@ function buildDaySegments(dayItems: PlanItem[]) {
   const axisEnd = START_MINUTES + TOTAL_MINUTES;
   const entries = dayItems
     .map((item) => {
-      const { start: displayStart, end: displayEnd } = normalizeDisplayRange(item.startTime, item.duration, START_MINUTES);
+      const displayStart = toDisplayStart(item.startTime);
+      const displayEnd = displayStart + item.duration;
       const clippedStart = Math.max(displayStart, axisStart);
       const clippedEnd = Math.min(displayEnd, axisEnd);
       if (clippedEnd <= clippedStart) return null;
@@ -94,13 +100,13 @@ export function TodayPage({
       .sort((a, b) => a.startTime - b.startTime);
   }, [data.planItems, todayIndex, weekId]);
   const todayBlockingItems = useMemo(() => {
-    const lifestyleItems = getWeekLifestyleItemsFromData(data, weekId).filter((item) => item.dayOfWeek === todayIndex);
-    return [...todayItems, ...lifestyleItems].sort((a, b) => a.startTime - b.startTime);
-  }, [data, todayIndex, todayItems, weekId]);
+    return data.planItems
+      .filter((item) => item.weekId === weekId && item.dayOfWeek === todayIndex)
+      .sort((a, b) => a.startTime - b.startTime);
+  }, [data.planItems, todayIndex, weekId]);
   const todaySegments = useMemo<TodaySegment[]>(() => buildDaySegments(todayBlockingItems), [todayBlockingItems]);
 
   const plannedMinutes = todayItems.reduce((sum, item) => sum + item.duration, 0);
-  const doneItems = useMemo(() => todayItems.filter((item) => item.status === 'done'), [todayItems]);
   const doneMinutes = todayItems
     .filter((item) => item.status === 'done')
     .reduce((sum, item) => sum + (item.actualDuration ?? item.duration), 0);
@@ -108,31 +114,15 @@ export function TodayPage({
 
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const incompleteItems = useMemo(() => todayItems.filter((item) => item.status !== 'done'), [todayItems]);
-  const currentItem = incompleteItems.find(
-    (item) => nowMinutes >= item.startTime && nowMinutes < item.startTime + item.duration,
+  const currentItem = todayItems.find(
+    (item) =>
+      item.status !== 'done' && nowMinutes >= item.startTime && nowMinutes < item.startTime + item.duration,
   );
-  const overdueItems = incompleteItems
-    .filter((item) => item.startTime + item.duration <= nowMinutes)
-    .sort((a, b) => a.startTime - b.startTime);
-  const orderedIncompleteItems = [
-    ...(currentItem ? [currentItem] : []),
-    ...incompleteItems.filter((item) => item.startTime > nowMinutes).sort((a, b) => a.startTime - b.startTime),
-    ...overdueItems,
-  ].filter((item, index, self) => self.findIndex((target) => target.id === item.id) === index);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const touchStartX = useRef<number | null>(null);
-  const [detailItem, setDetailItem] = useState<PlanItem | null>(null);
-
-  const activeItem = orderedIncompleteItems[activeIndex];
-  const totalIncomplete = orderedIncompleteItems.length;
-  const activeLabel = activeItem
-    ? nowMinutes >= activeItem.startTime && nowMinutes < activeItem.startTime + activeItem.duration
-      ? '今やる'
-      : activeItem.startTime > nowMinutes
-        ? '次にやる'
-        : '過去の未完了'
-    : '次にやる';
+  const nextItem =
+    currentItem ??
+    todayItems
+      .filter((item) => item.status !== 'done' && item.startTime >= nowMinutes)
+      .sort((a, b) => a.startTime - b.startTime)[0];
 
   const handleMarkDone = (item: PlanItem) => {
     onUpdateData((prev) => ({
@@ -146,26 +136,6 @@ export function TodayPage({
 
   const dateLabel = format(new Date(), 'yyyy/MM/dd');
   const dayLabel = DAYS[todayIndex] ?? '';
-  useEffect(() => {
-    setActiveIndex((prev) => Math.min(prev, Math.max(0, orderedIncompleteItems.length - 1)));
-  }, [orderedIncompleteItems.length]);
-
-  const handleTouchStart = (event: React.TouchEvent) => {
-    touchStartX.current = event.touches[0]?.clientX ?? null;
-  };
-
-  const handleTouchEnd = (event: React.TouchEvent) => {
-    if (touchStartX.current === null || totalIncomplete <= 1) return;
-    const endX = event.changedTouches[0]?.clientX ?? touchStartX.current;
-    const deltaX = endX - touchStartX.current;
-    if (Math.abs(deltaX) > 40) {
-      setActiveIndex((prev) => {
-        const nextIndex = deltaX < 0 ? prev + 1 : prev - 1;
-        return Math.min(Math.max(nextIndex, 0), totalIncomplete - 1);
-      });
-    }
-    touchStartX.current = null;
-  };
 
   return (
     <AppChrome title="今日の予定" actions={null}>
@@ -207,115 +177,56 @@ export function TodayPage({
 
           <Card>
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-sm font-semibold text-muted-foreground">次にやる</CardTitle>
-                {incompleteItems.length > 0 ? (
-                  <Badge variant="secondary" className="text-[11px]">
-                    未完了 {incompleteItems.length}件
-                  </Badge>
-                ) : null}
-              </div>
+              <CardTitle className="text-sm font-semibold text-muted-foreground">次にやる</CardTitle>
             </CardHeader>
-            <CardContent
-              className="relative space-y-2 px-10 pt-0"
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-            >
-              {incompleteItems.length > 0 && activeItem ? (
+            <CardContent className="space-y-3">
+              {nextItem ? (
                 <>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      <span className="font-mono">
-                        {minutesToTimeString(activeItem.startTime)}〜
-                        {minutesToTimeString(activeItem.startTime + activeItem.duration)}
-                      </span>
-                      <span>（{formatMinutes(activeItem.duration)}）</span>
-                    </div>
-                    {totalIncomplete > 1 ? (
-                      <span className="text-[11px]">
-                        {activeIndex + 1}/{totalIncomplete}
-                      </span>
-                    ) : null}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    <span className="font-mono">
+                      {minutesToTimeString(nextItem.startTime)}〜
+                      {minutesToTimeString(nextItem.startTime + nextItem.duration)}
+                    </span>
+                    <span>（{formatMinutes(nextItem.duration)}）</span>
                   </div>
                   <div className="text-sm font-semibold text-foreground">
-                    {activeItem.label ??
-                      data.materials.find((m) => m.id === activeItem.materialId)?.name ??
-                      data.categories.find((c) => c.id === activeItem.categoryId)?.name ??
+                    {nextItem.label ??
+                      data.materials.find((m) => m.id === nextItem.materialId)?.name ??
+                      data.categories.find((c) => c.id === nextItem.categoryId)?.name ??
                       '学習'}
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>
                       カテゴリ：
-                      {data.categories.find((c) => c.id === activeItem.categoryId)?.name ?? '未設定'}
+                      {data.categories.find((c) => c.id === nextItem.categoryId)?.name ?? '未設定'}
                     </span>
                     <span>・</span>
-                    <span>所要 {formatMinutes(activeItem.duration)}</span>
+                    <span>所要 {formatMinutes(nextItem.duration)}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleMarkDone(activeItem)}>
-                      完了にする
-                    </Button>
-                    {totalIncomplete > 1 ? (
-                      <span className="text-[11px] text-muted-foreground">
-                        未完了 {activeIndex + 1}/{totalIncomplete}
+                    {nextItem.status === 'done' ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                        <CheckCircle2 className="w-4 h-4" />
+                        完了済み
                       </span>
-                    ) : null}
+                    ) : (
+                      <Button size="sm" onClick={() => handleMarkDone(nextItem)}>
+                        完了にする
+                      </Button>
+                    )}
                   </div>
                 </>
-              ) : todayItems.length > 0 ? (
-                <div className="rounded-lg border border-dashed border-border bg-muted px-3 py-3 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2 text-sm text-emerald-600">
-                    <CheckCircle2 className="w-4 h-4" />
-                    今日の予定は完了しました
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    完了 {doneItems.length}/{todayItems.length}・実績{' '}
-                    {doneMinutes === 0 ? '未記録' : formatMinutes(doneMinutes)}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={onNavigateWeekly}>
-                      今週の計画へ
-                    </Button>
-                    <Button size="sm" onClick={onNavigateWeekly}>
-                      今週に追加する
-                    </Button>
-                  </div>
-                </div>
               ) : (
                 <div className="rounded-lg border border-dashed border-border bg-muted px-3 py-3 text-xs text-muted-foreground">
-                  今日は予定がありません。
+                  今日の予定は完了しています。次の予定は週計画で追加できます。
                   <div className="mt-2">
-                    <Button size="sm" onClick={onNavigateWeekly}>
-                      今日に予定を追加
+                    <Button variant="outline" size="sm" onClick={onNavigateWeekly}>
+                      今週の計画へ
                     </Button>
                   </div>
                 </div>
               )}
-              {totalIncomplete > 1 ? (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="前の未完了を表示"
-                    className="absolute left-3 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
-                    onClick={() => setActiveIndex((prev) => Math.max(prev - 1, 0))}
-                    disabled={activeIndex === 0}
-                  >
-                    <span className="text-lg font-semibold">&lt;</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="次の未完了を表示"
-                    className="absolute right-3 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full border border-border/70 bg-background shadow-sm"
-                    onClick={() => setActiveIndex((prev) => Math.min(prev + 1, totalIncomplete - 1))}
-                    disabled={activeIndex >= totalIncomplete - 1}
-                  >
-                    <span className="text-lg font-semibold">&gt;</span>
-                  </Button>
-                </>
-              ) : null}
             </CardContent>
           </Card>
         </div>
@@ -373,9 +284,8 @@ export function TodayPage({
               const title = item.label ?? material ?? category ?? '学習';
 
               return (
-                <div key={item.id}>
-                  <Card className="cursor-pointer" onClick={() => setDetailItem(item)}>
-                    <CardContent className="py-4 flex flex-wrap items-center gap-3">
+                <Card key={item.id}>
+                  <CardContent className="py-4 flex flex-wrap items-center gap-3">
                     <div className="min-w-[140px] text-sm font-mono text-muted-foreground">
                       {startLabel} - {endLabel}
                     </div>
@@ -388,81 +298,17 @@ export function TodayPage({
                     {item.status === 'done' ? (
                       <span className="text-xs text-emerald-600 font-medium">完了</span>
                     ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleMarkDone(item);
-                        }}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => handleMarkDone(item)}>
                         完了にする
                       </Button>
                     )}
                   </CardContent>
-                  </Card>
-                </div>
+                </Card>
               );
             })}
           </div>
         )}
       </PageLayout>
-
-      <Dialog open={Boolean(detailItem)} onOpenChange={(open) => (!open ? setDetailItem(null) : null)}>
-        <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader>
-            <DialogTitle>実施内容</DialogTitle>
-          </DialogHeader>
-          {detailItem ? (
-            <div className="space-y-4 text-sm">
-              <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                {minutesToTimeString(detailItem.startTime)}〜
-                {minutesToTimeString(detailItem.startTime + detailItem.duration)} ・{' '}
-                {formatMinutes(detailItem.duration)}
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">タイトル</p>
-                <p className="text-sm font-semibold text-foreground">
-                  {detailItem.label ??
-                    data.materials.find((m) => m.id === detailItem.materialId)?.name ??
-                    data.categories.find((c) => c.id === detailItem.categoryId)?.name ??
-                    '学習'}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">カテゴリ</p>
-                <p>{data.categories.find((c) => c.id === detailItem.categoryId)?.name ?? '未設定'}</p>
-              </div>
-              {detailItem.materialId ? (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">教材</p>
-                  <p>{data.materials.find((m) => m.id === detailItem.materialId)?.name ?? '-'}</p>
-                </div>
-              ) : null}
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <NotebookPen className="h-4 w-4" />
-                  <span>実施内容</span>
-                </div>
-                <div className="rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground whitespace-pre-wrap">
-                  {detailItem.notes?.trim() || '記録はまだありません。'}
-                </div>
-              </div>
-            </div>
-          ) : null}
-          <DialogFooter>
-            {detailItem ? (
-              <Button
-                onClick={() => handleMarkDone(detailItem)}
-                disabled={detailItem.status === 'done'}
-                variant={detailItem.status === 'done' ? 'secondary' : 'default'}
-              >
-                {detailItem.status === 'done' ? '完了済み' : '完了にする'}
-              </Button>
-            ) : null}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </AppChrome>
   );
 }
