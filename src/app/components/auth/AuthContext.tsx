@@ -12,6 +12,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   user: AuthUser | null;
   refresh: () => Promise<void>;
+  signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -19,6 +20,11 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 const isServerAuthEnabled = Boolean(API_BASE_URL);
+const mockUser: AuthUser = {
+  id: 'mock-user',
+  name: 'ゲストユーザー',
+  email: 'guest@example.com',
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -51,6 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const signIn = useCallback(async () => {
+    if (isServerAuthEnabled) {
+      window.location.assign(`${API_BASE_URL}/auth/google`);
+      return;
+    }
+    setUser(mockUser);
+  }, []);
+
   const signOut = useCallback(async () => {
     if (isServerAuthEnabled) {
       // ログアウト時にサーバー側セッションも破棄して安全性を担保する。
@@ -76,9 +90,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(user),
       user,
       refresh,
+      signIn,
       signOut,
     };
-  }, [isLoading, refresh, signOut, user]);
+  }, [isLoading, refresh, signIn, signOut, user]);
 
   useEffect(() => {
     // 初回ロード時に /auth/me を叩き、ログイン状態が確定するまで描画を止める。
