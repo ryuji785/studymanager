@@ -3,6 +3,9 @@ import { Navigate, Outlet } from 'react-router-dom';
 
 import { useAuth } from './AuthContext';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+const isServerAuthEnabled = Boolean(API_BASE_URL);
+
 export function PrivateRoute() {
   const { isLoading, isAuthenticated } = useAuth();
 
@@ -11,7 +14,7 @@ export function PrivateRoute() {
     return null;
   }
 
-  if (!isAuthenticated) {
+  if (isServerAuthEnabled && !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

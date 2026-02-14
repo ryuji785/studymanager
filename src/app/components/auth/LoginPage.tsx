@@ -8,11 +8,11 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 const isServerAuthEnabled = Boolean(API_BASE_URL);
 
 export function LoginPage() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, signIn } = useAuth();
 
   const loginTitle = useMemo(() => {
     if (isServerAuthEnabled) return 'Googleでログイン';
-    return 'ログイン';
+    return 'モックログイン';
   }, []);
 
   useEffect(() => {
@@ -38,20 +38,17 @@ export function LoginPage() {
           <h1 className="text-2xl font-bold text-foreground">{loginTitle}</h1>
         </div>
         <div className="space-y-3">
-          {isServerAuthEnabled ? (
-            <Button
-              className="w-full"
-              onClick={() => {
-                // サーバー側でCSRF対策したOAuth認可フローに遷移する。
-                window.location.assign(`${API_BASE_URL}/auth/google`);
-              }}
-            >
-              Googleログイン
-            </Button>
-          ) : null}
+          <Button
+            className="w-full"
+            onClick={() => {
+              void signIn();
+            }}
+          >
+            {isServerAuthEnabled ? 'Googleログイン' : 'ログイン（モック）'}
+          </Button>
           {!isServerAuthEnabled ? (
             <p className="text-sm text-muted-foreground">
-              ログイン設定が未構成です。管理者に環境変数の設定を依頼してください。
+              現在はモックログインです。ボタン押下で認証済みとして扱います。
             </p>
           ) : null}
         </div>
