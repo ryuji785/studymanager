@@ -68,6 +68,9 @@ export function PeriodSelector({
   }, [open, startDate?.getTime(), endDate?.getTime()]);
 
   const canShift = Boolean(startDate && endDate);
+  const pendingDiffDays =
+    pendingRange?.from && pendingRange?.to ? differenceInCalendarDays(pendingRange.to, pendingRange.from) : null;
+  const hasRangeLimitError = pendingDiffDays !== null && pendingDiffDays >= 7;
 
   const shift = (direction: -1 | 1) => {
     if (!startDate || !endDate) return;
@@ -133,13 +136,27 @@ export function PeriodSelector({
                 selected={pendingRange}
                 onSelect={(next) => {
                   setPendingRange(next);
-                  if (!next?.from || !next?.to) return;
-                  onChange({ start: toIsoDate(next.from), end: toIsoDate(next.to) });
-                  setOpen(false);
                 }}
                 numberOfMonths={2}
                 initialFocus
               />
+              {hasRangeLimitError ? (
+                <p className="px-2 text-xs text-red-600">開始日と終了日の差は6日以内にしてください。</p>
+              ) : null}
+              <div className="flex justify-end px-2 pb-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={disabled || !pendingRange?.from || !pendingRange?.to || hasRangeLimitError}
+                  onClick={() => {
+                    if (!pendingRange?.from || !pendingRange?.to || hasRangeLimitError) return;
+                    onChange({ start: toIsoDate(pendingRange.from), end: toIsoDate(pendingRange.to) });
+                    setOpen(false);
+                  }}
+                >
+                  反映する
+                </Button>
+              </div>
             </div>
           )}
         </PopoverContent>
@@ -159,4 +176,3 @@ export function PeriodSelector({
     </div>
   );
 }
-
