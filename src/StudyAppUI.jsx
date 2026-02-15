@@ -997,19 +997,28 @@ export default function App() {
                 onChange={(e) => {
                   const nextDate = e.target.value;
                   setPeriodDateInput(nextDate);
-                  applyPeriodRangeFromDate(nextDate);
                 }}
                 className="mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none appearance-none box-border focus:ring-2 focus:ring-indigo-200"
               />
             </label>
           </div>
 
-          <div className="mt-5">
+          <div className="mt-5 flex items-center justify-end gap-2">
             <button
               onClick={() => setIsPeriodPickerOpen(false)}
-              className="w-full py-3 rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm touch-manipulation active:scale-95 transition-transform"
+              className="py-3 px-4 rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm touch-manipulation active:scale-95 transition-transform"
             >
               キャンセル
+            </button>
+            <button
+              onClick={() => {
+                applyPeriodRangeFromDate(periodDateInput);
+                setIsPeriodPickerOpen(false);
+              }}
+              className="inline-flex items-center gap-1.5 py-3 px-4 rounded-xl bg-indigo-600 text-white font-bold text-sm touch-manipulation active:scale-95 transition-transform"
+            >
+              <Check size={14} />
+              反映
             </button>
           </div>
         </div>
