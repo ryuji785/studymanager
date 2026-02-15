@@ -295,6 +295,18 @@ export default function App() {
     setIsPeriodPickerOpen(false);
   };
 
+  const applyPeriodRangeFromDate = (nextDate) => {
+    if (!nextDate) return;
+    const selected = new Date(nextDate);
+    if (Number.isNaN(selected.getTime())) return;
+
+    const nextWeekStart = getWeekStartMonday(selected);
+
+    setWeekStartDate(nextWeekStart);
+    setSelectedDate(nextDate);
+    setIsPeriodPickerOpen(false);
+  };
+
   const handlePlanStartHourChange = (value) => {
     const nextStart = Math.max(0, Math.min(23, Number(value) || 0));
     setPlanStartHour(nextStart);
@@ -999,8 +1011,12 @@ export default function App() {
               <input
                 type="date"
                 value={periodDateInput}
-                onChange={(e) => setPeriodDateInput(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
+                onChange={(e) => {
+                  const nextDate = e.target.value;
+                  setPeriodDateInput(nextDate);
+                  applyPeriodRangeFromDate(nextDate);
+                }}
+                className="mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none appearance-none box-border focus:ring-2 focus:ring-indigo-200"
               />
             </label>
           </div>
