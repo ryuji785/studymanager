@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AlertTriangle, ArrowLeft, Calendar, CheckCircle2, Copy, Edit3, Eye, FileDown, History, Info, Loader2, Plus, Save } from 'lucide-react';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 import { Student, SubjectTarget, WeeklyPlan, Reflection, ScheduleBlock as ScheduleBlockType } from '../types';
 import { formatDisplayFromISO } from '../utils/date';
@@ -88,6 +89,14 @@ export function WeeklyPlanEditor({
   const [createTemplate, setCreateTemplate] = useState<'blank' | 'duplicate'>('blank');
   const [createPeriod, setCreatePeriod] = useState<PeriodValue>(selectedPeriod);
 
+  const createPeriodDays = useMemo(() => {
+    const start = parseISO(createPeriod.start);
+    const end = parseISO(createPeriod.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+    return differenceInCalendarDays(end, start) + 1;
+  }, [createPeriod.end, createPeriod.start]);
+  const isCreatePeriodInvalid = createPeriodDays === null || createPeriodDays < 1 || createPeriodDays > 7;
+
   useEffect(() => {
     if (!createDialogOpen) return;
     setCreatePeriod(selectedPeriod);
@@ -173,6 +182,12 @@ export function WeeklyPlanEditor({
       const ok = window.confirm('未保存の変更があります。破棄して新規作成しますか？');
       if (!ok) return;
     }
+
+    if (isCreatePeriodInvalid) {
+      toast.error('1週間以内の期間を指定してください。期間を見直してください。');
+      return;
+    }
+
     onCreateWeekByPeriod({ weekStart: createPeriod.start, weekEnd: createPeriod.end, template: createTemplate });
     setCreateDialogOpen(false);
   };
@@ -597,6 +612,9 @@ export function WeeklyPlanEditor({
               <Label className="text-sm">期間</Label>
               <PeriodSelector value={createPeriod} onChange={setCreatePeriod} mode="week" weekStartsOn={1} />
               <p className="text-xs text-gray-500">表示は {`YYYY-MM-DD〜YYYY-MM-DD`} に統一しています。</p>
+              {isCreatePeriodInvalid && (
+                <p className="text-xs text-red-600">1週間を超える期間は指定できません。期間を見直してください。</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -628,7 +646,7 @@ export function WeeklyPlanEditor({
             <Button type="button" variant="outline" className="bg-white" onClick={() => setCreateDialogOpen(false)}>
               キャンセル
             </Button>
-            <Button type="button" onClick={requestCreateForPeriod}>
+            <Button type="button" onClick={requestCreateForPeriod} disabled={isCreatePeriodInvalid}>
               作成
             </Button>
           </DialogFooter>
