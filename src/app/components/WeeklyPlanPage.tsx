@@ -601,6 +601,8 @@ export function WeeklyPlanPage({
 
   const handleToggleDone = (item: PlanItem) => {
     handleUpdateItem({ ...item, status: item.status === 'done' ? 'planned' : 'done' });
+    setItemSheetOpen(false);
+    setEditingItem(null);
   };
 
   const deleteItemWithUndo = (item: PlanItem) => {
