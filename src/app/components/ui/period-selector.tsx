@@ -36,6 +36,7 @@ export function PeriodSelector({
   weekStartsOn,
   disabled,
   className,
+  onConfirm,
 }: {
   value: PeriodValue;
   onChange: (next: PeriodValue) => void;
@@ -44,6 +45,7 @@ export function PeriodSelector({
   weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   disabled?: boolean;
   className?: string;
+  onConfirm?: () => void;
 }) {
   const startDate = parseIsoDate(value.start);
   const endDate = parseIsoDate(value.end);
@@ -98,7 +100,7 @@ export function PeriodSelector({
         <ChevronLeft className="w-4 h-4" />
       </Button>
 
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal>
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -139,6 +141,7 @@ export function PeriodSelector({
                     const end = addDays(pendingWeekStart, 6);
                     onChange({ start: toIsoDate(pendingWeekStart), end: toIsoDate(end) });
                     setOpen(false);
+                    onConfirm?.();
                   }}
                 >
                   <CalendarCheck2 className="w-4 h-4" />
@@ -169,6 +172,7 @@ export function PeriodSelector({
                     if (!pendingRange?.from || !pendingRange?.to || hasRangeLimitError) return;
                     onChange({ start: toIsoDate(pendingRange.from), end: toIsoDate(pendingRange.to) });
                     setOpen(false);
+                    onConfirm?.();
                   }}
                 >
                   反映する
