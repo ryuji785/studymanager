@@ -998,6 +998,7 @@ export default function App() {
                   const nextDate = e.target.value;
                   setPeriodDateInput(nextDate);
                   applyPeriodRangeFromDate(nextDate);
+                  setIsPeriodPickerOpen(false);
                 }}
                 className="mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none appearance-none box-border focus:ring-2 focus:ring-indigo-200"
               />
