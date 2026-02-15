@@ -291,6 +291,8 @@ export default function App() {
     const end = new Date(periodEndInput);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
     if (start > end) return;
+    const rangeDays = Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+    if (rangeDays > 6) return;
 
     const nextWeekStart = getWeekStartMonday(start);
     const nextWeekDays = getWeekDays(nextWeekStart);
@@ -973,7 +975,15 @@ export default function App() {
 
   const renderPeriodPickerModal = () => {
     if (!isPeriodPickerOpen) return null;
-    const hasInvalidRange = Boolean(periodStartInput && periodEndInput && periodStartInput > periodEndInput);
+    const hasMissingDate = !periodStartInput || !periodEndInput;
+    const start = periodStartInput ? new Date(periodStartInput) : null;
+    const end = periodEndInput ? new Date(periodEndInput) : null;
+    const hasInvalidDateValue =
+      Boolean(start && Number.isNaN(start.getTime())) || Boolean(end && Number.isNaN(end.getTime()));
+    const hasInvalidRange = Boolean(start && end && start > end);
+    const rangeDays = start && end ? Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) : null;
+    const hasTooLongRange = Boolean(rangeDays !== null && rangeDays > 6);
+    const isApplyDisabled = hasMissingDate || hasInvalidDateValue || hasInvalidRange || hasTooLongRange;
 
     return (
       <div className="fixed inset-0 z-[66] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
@@ -1003,6 +1013,7 @@ export default function App() {
                 type="date"
                 value={periodStartInput}
                 onChange={(e) => setPeriodStartInput(e.target.value)}
+                max={periodEndInput || undefined}
                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
               />
             </label>
@@ -1013,12 +1024,16 @@ export default function App() {
                 type="date"
                 value={periodEndInput}
                 onChange={(e) => setPeriodEndInput(e.target.value)}
+                min={periodStartInput || undefined}
                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
               />
             </label>
 
             {hasInvalidRange ? (
               <p className="text-xs text-rose-600">開始日は終了日以前を選択してください。</p>
+            ) : null}
+            {hasTooLongRange ? (
+              <p className="text-xs text-rose-600">開始日と終了日の差は6日以内にしてください。</p>
             ) : null}
           </div>
 
@@ -1031,7 +1046,7 @@ export default function App() {
             </button>
             <button
               onClick={applyPeriodRange}
-              disabled={hasInvalidRange}
+              disabled={isApplyDisabled}
               className="py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:bg-slate-300 disabled:cursor-not-allowed touch-manipulation active:scale-95 transition-transform"
             >
               反映する
