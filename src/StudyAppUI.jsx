@@ -283,18 +283,6 @@ export default function App() {
     setIsPeriodPickerOpen(true);
   };
 
-  const applyPeriodRange = () => {
-    if (!periodDateInput) return;
-    const selected = new Date(periodDateInput);
-    if (Number.isNaN(selected.getTime())) return;
-
-    const nextWeekStart = getWeekStartMonday(selected);
-
-    setWeekStartDate(nextWeekStart);
-    setSelectedDate(periodDateInput);
-    setIsPeriodPickerOpen(false);
-  };
-
   const applyPeriodRangeFromDate = (nextDate) => {
     if (!nextDate) return;
     const selected = new Date(nextDate);
@@ -304,7 +292,6 @@ export default function App() {
 
     setWeekStartDate(nextWeekStart);
     setSelectedDate(nextDate);
-    setIsPeriodPickerOpen(false);
   };
 
   const handlePlanStartHourChange = (value) => {
@@ -979,10 +966,6 @@ export default function App() {
 
   const renderPeriodPickerModal = () => {
     if (!isPeriodPickerOpen) return null;
-    const hasMissingDate = !periodDateInput;
-    const selected = periodDateInput ? new Date(periodDateInput) : null;
-    const hasInvalidDateValue = Boolean(selected && Number.isNaN(selected.getTime()));
-    const isApplyDisabled = hasMissingDate || hasInvalidDateValue;
 
     return (
       <div className="fixed inset-0 z-[66] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
@@ -1021,19 +1004,12 @@ export default function App() {
             </label>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="mt-5">
             <button
               onClick={() => setIsPeriodPickerOpen(false)}
-              className="py-3 rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm touch-manipulation active:scale-95 transition-transform"
+              className="w-full py-3 rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm touch-manipulation active:scale-95 transition-transform"
             >
               キャンセル
-            </button>
-            <button
-              onClick={applyPeriodRange}
-              disabled={isApplyDisabled}
-              className="py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:bg-slate-300 disabled:cursor-not-allowed touch-manipulation active:scale-95 transition-transform"
-            >
-              反映する
             </button>
           </div>
         </div>
