@@ -291,6 +291,8 @@ export default function App() {
     const end = new Date(periodEndInput);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
     if (start > end) return;
+    const rangeDays = Math.floor((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+    if (rangeDays > 6) return;
 
     const nextWeekStart = getWeekStartMonday(start);
     const nextWeekDays = getWeekDays(nextWeekStart);
