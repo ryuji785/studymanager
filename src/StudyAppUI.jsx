@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Home, Calendar, BookOpen, Footprints, Settings, Check, Plus, MoreHorizontal, ChevronRight, Book, Play, Pause, X, Zap, Crown, BarChart2, Trash2, Clock, RefreshCw } from 'lucide-react';
 
 const DEFAULT_PLAN_START_HOUR = 7;
@@ -558,7 +558,7 @@ export default function App() {
       <h1 className="text-xl font-bold text-slate-800 tracking-tight">{title}</h1>
       {showSettings && (
         <div className="flex items-center gap-3">
-          <span className="px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-md">Free Plan</span>
+          <span className="px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold rounded-md">フリープラン</span>
           <button
             onClick={() => setIsPlanSettingsOpen(true)}
             className="p-2 rounded-full hover:bg-slate-100 text-slate-400"
@@ -1852,6 +1852,8 @@ export default function App() {
     );
   };
 
+  const heatmapScrollRef = useRef(null);
+
   const historyData = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1915,21 +1917,25 @@ export default function App() {
       .sort((a, b) => b.minutes - a.minutes)
       .slice(0, 5);
 
-    const weeklyColumns = [];
+    const recordMap = dailyRecords.reduce((acc, entry) => {
+      acc[entry.dateKey] = entry.minutes;
+      return acc;
+    }, {});
+
     const firstWeekStart = getWeekStartMonday(addDays(today, -133));
+    const heatmapCells = [];
     for (let week = 0; week < 20; week += 1) {
       const weekStart = addDays(firstWeekStart, week * 7);
-      const days = Array.from({ length: 7 }, (_, dayIndex) => {
+      for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
         const date = addDays(weekStart, dayIndex);
         const key = toDateKey(date);
-        const record = dailyRecords.find((entry) => entry.dateKey === key);
-        return {
-          date,
+        heatmapCells.push({
           key,
-          minutes: record?.minutes || 0,
-        };
-      });
-      weeklyColumns.push({ weekStart, days });
+          minutes: recordMap[key] || 0,
+          column: week + 1,
+          row: dayIndex + 1,
+        });
+      }
     }
 
     const peakHour = hourlyCounts.indexOf(Math.max(...hourlyCounts));
@@ -1953,12 +1959,19 @@ export default function App() {
       totalHours: Math.round(totalMinutes / 60),
       currentStreak,
       encouragement,
-      weeklyColumns,
+      heatmapCells,
+      heatmapWeeks: 20,
       hourlyCounts,
       subjectBreakdown,
       insightComment,
     };
   }, [books, tasks]);
+
+  useEffect(() => {
+    if (!heatmapScrollRef.current) return;
+    const { scrollWidth, clientWidth } = heatmapScrollRef.current;
+    heatmapScrollRef.current.scrollLeft = Math.max(0, scrollWidth - clientWidth);
+  }, [historyData.heatmapCells]);
 
   const getHeatmapTone = (minutes) => {
     if (minutes <= 0) return 'bg-slate-100';
@@ -1972,18 +1985,18 @@ export default function App() {
     const totalSubjectMinutes = historyData.subjectBreakdown.reduce((sum, item) => sum + item.minutes, 0) || 1;
 
     return (
-      <div className="pb-24 animate-fade-in">
+      <div className="pb-24 animate-fade-in text-slate-700">
         <Header title="あゆみ" />
         <div className="px-4 sm:px-6 lg:px-8 space-y-6">
           <section className="bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 rounded-3xl p-6 text-white shadow-lg">
             <p className="text-indigo-100 text-sm font-medium mb-3">あなたの学習ダッシュボード</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <p className="text-xs uppercase tracking-wider text-indigo-100">総学習時間</p>
+                <p className="text-xs tracking-wider text-indigo-100">総学習時間</p>
                 <p className="text-4xl font-bold tracking-tight mt-1">{historyData.totalHours}<span className="text-xl ml-1 align-middle">時間</span></p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wider text-indigo-100">継続日数</p>
+                <p className="text-xs tracking-wider text-indigo-100">継続日数</p>
                 <p className="text-4xl font-bold tracking-tight mt-1">{historyData.currentStreak}<span className="text-xl ml-1 align-middle">日</span></p>
               </div>
             </div>
@@ -1992,46 +2005,62 @@ export default function App() {
 
           <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
             <div>
-              <h3 className="text-base font-bold text-slate-800">Consistency Heatmap</h3>
+              <h3 className="text-lg font-bold text-slate-700">学習の足あと（直近3ヶ月）</h3>
               <p className="text-xs text-slate-500 mt-1">日々の学習時間をGitHub風に可視化しています</p>
             </div>
-            <div className="overflow-x-auto pb-2">
-              <div className="inline-flex gap-1 min-w-max">
-                {historyData.weeklyColumns.map((week) => (
-                  <div key={toDateKey(week.weekStart)} className="flex flex-col gap-1">
-                    {week.days.map((day) => (
-                      <div
-                        key={day.key}
-                        title={`${day.key} / ${day.minutes}分`}
-                        className={`h-4 w-4 rounded-sm ${getHeatmapTone(day.minutes)}`}
-                      />
-                    ))}
-                  </div>
-                ))}
+            <div className="flex gap-3">
+              <div className="pt-1 text-[11px] text-slate-500 leading-[18px]">
+                <p className="h-[18px]">月</p>
+                <p className="h-[18px]">&nbsp;</p>
+                <p className="h-[18px]">水</p>
+                <p className="h-[18px]">&nbsp;</p>
+                <p className="h-[18px]">金</p>
+              </div>
+              <div ref={heatmapScrollRef} className="overflow-x-auto pb-2">
+                <div
+                  className="grid min-w-max gap-1"
+                  style={{
+                    gridTemplateRows: 'repeat(7, 1fr)',
+                    gridAutoFlow: 'column',
+                    gridAutoColumns: '16px',
+                  }}
+                >
+                  {historyData.heatmapCells.map((cell) => (
+                    <div
+                      key={cell.key}
+                      title={`${cell.key} / ${cell.minutes}分`}
+                      className={`h-4 w-4 rounded-[4px] ${getHeatmapTone(cell.minutes)}`}
+                      style={{ gridColumn: cell.column, gridRow: cell.row }}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-slate-500">
-              <span>少ない</span>
+              <span>少</span>
+              <span>・・・</span>
               <span className="h-3 w-3 rounded-sm bg-slate-100" />
               <span className="h-3 w-3 rounded-sm bg-indigo-200" />
               <span className="h-3 w-3 rounded-sm bg-indigo-400" />
               <span className="h-3 w-3 rounded-sm bg-indigo-600" />
-              <span>多い</span>
+              <span>・・・</span>
+              <span>多</span>
             </div>
           </section>
 
           <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
             <div>
-              <h3 className="text-base font-bold text-slate-800">Hourly Rhythm Chart</h3>
+              <h3 className="text-lg font-bold text-slate-700">時間帯別の集中度</h3>
               <p className="text-xs text-slate-500 mt-1">よく学習する時間帯がひと目でわかります</p>
             </div>
-            <div className="h-44 flex items-end gap-1 rounded-xl bg-slate-50 p-3">
+            <div className="h-48 flex items-end gap-1 rounded-xl bg-slate-50 p-3">
               {historyData.hourlyCounts.map((count, hour) => {
                 const height = Math.max(8, (count / maxHourlyCount) * 100);
+                const showHourLabel = hour % 6 === 0;
                 return (
-                  <div key={hour} className="flex-1 flex flex-col items-center justify-end min-w-[10px]">
-                    <div className="w-full rounded-t-sm bg-indigo-500/90" style={{ height: `${height}%` }} />
-                    <span className="mt-1 text-[9px] text-slate-400">{hour}</span>
+                  <div key={hour} className="flex-1 flex flex-col items-center justify-end min-w-[12px]">
+                    <div className="w-full rounded-t-md bg-indigo-500/90" style={{ height: `${height}%` }} />
+                    <span className="mt-1 h-3 text-[10px] text-slate-500">{showHourLabel ? hour : ''}</span>
                   </div>
                 );
               })}
@@ -2041,7 +2070,7 @@ export default function App() {
 
           <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
             <div>
-              <h3 className="text-base font-bold text-slate-800">Subject Breakdown</h3>
+              <h3 className="text-lg font-bold text-slate-700">科目別のバランス</h3>
               <p className="text-xs text-slate-500 mt-1">カテゴリ別の学習比率</p>
             </div>
             <div className="space-y-3">
