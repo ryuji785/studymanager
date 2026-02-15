@@ -28,6 +28,74 @@ type EmptySlot = {
   duration: number;
 };
 
+type BlockLayout = {
+  block: ScheduleBlockType;
+  top: number;
+  height: number;
+  columnIndex: number;
+  columnCount: number;
+};
+
+type PositionedBlock = {
+  block: ScheduleBlockType;
+  start: number;
+  end: number;
+  top: number;
+  height: number;
+};
+
+function getColumnStyle(columnIndex: number, columnCount: number) {
+  const width = 100 / columnCount;
+  const left = width * columnIndex;
+  const gutter = columnCount > 1 ? 6 : 0;
+
+  return {
+    left: gutter > 0 ? `calc(${left}% + ${gutter / 2}px)` : `${left}%`,
+    width: gutter > 0 ? `calc(${width}% - ${gutter}px)` : `${width}%`,
+  } as React.CSSProperties;
+}
+
+function layoutBlocks(blocks: PositionedBlock[]): BlockLayout[] {
+  const sorted = [...blocks].sort((a, b) => (a.start === b.start ? a.end - b.end : a.start - b.start));
+  const layouts: BlockLayout[] = [];
+
+  let current: Array<Omit<BlockLayout, 'columnCount'>> = [];
+  let columnsEnd: number[] = [];
+
+  sorted.forEach((entry) => {
+    const hasActive = columnsEnd.some((end) => end > entry.start);
+    if (!hasActive && current.length > 0) {
+      const columnCount = columnsEnd.length || 1;
+      current.forEach((item) => layouts.push({ ...item, columnCount }));
+      current = [];
+      columnsEnd = [];
+    }
+
+    let columnIndex = columnsEnd.findIndex((end) => end <= entry.start);
+    if (columnIndex === -1) {
+      columnIndex = columnsEnd.length;
+      columnsEnd.push(entry.end);
+    } else {
+      columnsEnd[columnIndex] = entry.end;
+    }
+
+    current.push({
+      block: entry.block,
+      top: entry.top,
+      height: entry.height,
+      columnIndex,
+      columnCount: 0,
+    });
+  });
+
+  if (current.length > 0) {
+    const columnCount = columnsEnd.length || 1;
+    current.forEach((entry) => layouts.push({ ...entry, columnCount }));
+  }
+
+  return layouts;
+}
+
 function formatTimeLabel(minutesFromMidnight: number) {
   const h = Math.floor(minutesFromMidnight / 60) % 24;
   const m = minutesFromMidnight % 60;
@@ -101,6 +169,37 @@ export function TimeTableGrid({ scheduleBlocks, editable = false, onBlockClick, 
     });
 
     return byDay;
+  }, [scheduleBlocks]);
+
+  const blockLayoutsByDay = useMemo(() => {
+    const axisStart = START_MINUTES;
+    const axisEnd = START_MINUTES + TOTAL_MINUTES;
+
+    return DAYS.map((_, dayIndex) => {
+      const positionedBlocks: PositionedBlock[] = scheduleBlocks
+        .filter((block) => block.dayOfWeek === dayIndex)
+        .map((block) => {
+          const { start, end } = normalizeDisplayRange(block.startTime, block.duration, START_MINUTES);
+          const clippedStart = Math.max(start, axisStart);
+          const clippedEnd = Math.min(end, axisEnd);
+          const clippedDuration = clippedEnd - clippedStart;
+          if (clippedDuration <= 0) return null;
+
+          const top = ((clippedStart - axisStart) / SLOT_MINUTES) * SLOT_HEIGHT;
+          const height = (clippedDuration / SLOT_MINUTES) * SLOT_HEIGHT;
+
+          return {
+            block,
+            start: clippedStart,
+            end: clippedEnd,
+            top,
+            height,
+          };
+        })
+        .filter((entry): entry is PositionedBlock => entry !== null);
+
+      return layoutBlocks(positionedBlocks);
+    });
   }, [scheduleBlocks]);
 
   return (
@@ -202,39 +301,27 @@ export function TimeTableGrid({ scheduleBlocks, editable = false, onBlockClick, 
               })}
 
               {/* ブロック */}
-              {scheduleBlocks
-                .filter((block) => block.dayOfWeek === dayIndex)
-                .map((block) => {
-                  const { start, end } = normalizeDisplayRange(block.startTime, block.duration, START_MINUTES);
-                  const axisStart = START_MINUTES;
-                  const axisEnd = START_MINUTES + TOTAL_MINUTES;
+              {blockLayoutsByDay[dayIndex]?.map((layout) => {
+                const columnStyle = getColumnStyle(layout.columnIndex, layout.columnCount);
 
-                  const clippedStart = Math.max(start, axisStart);
-                  const clippedEnd = Math.min(end, axisEnd);
-                  const clippedDuration = clippedEnd - clippedStart;
-                  if (clippedDuration <= 0) return null;
-
-                  const top = ((clippedStart - axisStart) / SLOT_MINUTES) * SLOT_HEIGHT;
-                  const height = (clippedDuration / SLOT_MINUTES) * SLOT_HEIGHT;
-
-                  return (
-                    <div
-                      key={block.id}
-                      className="absolute left-0 right-0 px-1 z-10"
-                      style={{ top: `${top}px` }}
-                    >
-                      <ScheduleBlock
-                        block={block}
-                        height={height}
-                        className="opacity-60 grayscale"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onBlockClick?.(block);
-                        }}
-                      />
-                    </div>
-                  );
-                })}
+                return (
+                  <div
+                    key={`${layout.block.id}-${layout.columnIndex}-${layout.top}`}
+                    className="absolute px-1 z-10"
+                    style={{ top: `${layout.top}px`, ...columnStyle }}
+                  >
+                    <ScheduleBlock
+                      block={layout.block}
+                      height={layout.height}
+                      className="opacity-60 grayscale"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onBlockClick?.(layout.block);
+                      }}
+                    />
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
