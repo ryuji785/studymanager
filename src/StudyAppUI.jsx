@@ -1477,7 +1477,7 @@ export default function App() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
-                  onClick={() => setIsFocusMode(true)}
+                  onClick={startFocusMode}
                   className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-2"
                 >
                   <Play size={18} /> 集中モード開始
