@@ -6,6 +6,7 @@ const DEFAULT_PLAN_END_HOUR = 23;
 const PLAN_SLOT_MINUTES = 30;
 const PLAN_ROW_HEIGHT = 56;
 const DEFAULT_FOCUS_MINUTES = 25;
+const DEMO_TODAY_DAY = 15;
 const WEEKDAY_LABELS = ['月', '火', '水', '木', '金', '土', '日'];
 const BOOK_COLOR_PALETTE = [
   {
@@ -148,6 +149,20 @@ function getWeekDays(weekStartDate) {
 function formatHourLabel(hour) {
   if (hour === 24) return '24:00';
   return `${String(hour).padStart(2, '0')}:00`;
+}
+
+function getTaskDayOfMonth(task) {
+  if (typeof task?.day === 'number') return task.day;
+  if (typeof task?.date === 'string') {
+    const parsedDay = Number(task.date.split('-')[2]);
+    if (!Number.isNaN(parsedDay)) return parsedDay;
+  }
+  return null;
+}
+
+function getTaskStartHour(task) {
+  if (typeof task?.startHour === 'number') return task.startHour;
+  return Math.floor(getTaskStartMinutes(task) / 60);
 }
 
 export default function App() {
@@ -353,6 +368,19 @@ export default function App() {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
   };
 
+  const toggleTaskCompletion = (taskId) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              isCompleted: !task.isCompleted,
+            }
+          : task,
+      ),
+    );
+  };
+
   const createBook = () => {
     const trimmed = newBookTitle.trim();
     if (!trimmed) return;
@@ -542,10 +570,40 @@ export default function App() {
     }
   };
 
-  const currentFocusTask = tasks
-    .filter((t) => t.date === selectedDate)
-    .slice()
-    .sort((a, b) => getTaskStartMinutes(a) - getTaskStartMinutes(b))[0] ?? null;
+  const todayGreeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 5) return 'こんばんは';
+    if (hour < 11) return 'おはようございます';
+    if (hour < 18) return 'こんにちは';
+    return 'こんばんは';
+  }, []);
+
+  const todaysTasks = useMemo(
+    () =>
+      tasks
+        .filter((task) => getTaskDayOfMonth(task) === DEMO_TODAY_DAY)
+        .slice()
+        .sort((a, b) => {
+          const startHourDiff = getTaskStartHour(a) - getTaskStartHour(b);
+          if (startHourDiff !== 0) return startHourDiff;
+          return getTaskStartMinutes(a) - getTaskStartMinutes(b);
+        }),
+    [tasks],
+  );
+
+  const nextActionTask = useMemo(
+    () => todaysTasks.find((task) => !task.isCompleted) ?? null,
+    [todaysTasks],
+  );
+  const timelineTasks = useMemo(() => {
+    if (!nextActionTask) return todaysTasks;
+    const nextStart = getTaskStartMinutes(nextActionTask);
+    return todaysTasks.filter(
+      (task) => task.id !== nextActionTask.id && getTaskStartMinutes(task) >= nextStart,
+    );
+  }, [todaysTasks, nextActionTask]);
+
+  const currentFocusTask = nextActionTask;
   const editStartOptions = useMemo(() => {
     if (planSlots.includes(editStartMinutes)) return planSlots;
     return [...planSlots, editStartMinutes].sort((a, b) => a - b);
@@ -1393,27 +1451,79 @@ export default function App() {
     <div className="pb-24 animate-fade-in">
       <Header title="ホーム" />
       <div className="px-4 sm:px-6 lg:px-8 py-4">
-        <p className="text-slate-500 text-sm mb-1">お疲れ様です</p>
+        <p className="text-slate-500 text-sm mb-1">{todayGreeting}</p>
         <h2 className="text-2xl font-bold text-slate-800 mb-2">
-          今週のゆとり: <span className="text-indigo-600">あと 5時間</span>
+          今日の自由時間: <span className="text-indigo-600">あと 3時間</span>
         </h2>
-        <div className="bg-white rounded-3xl p-6 shadow-lg shadow-indigo-100 border border-indigo-50 mt-4">
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700">実技</span>
-          <h3 className="text-xl font-bold text-slate-800 mb-2 mt-2">{currentFocusTask?.title ?? 'キャリコン実技（論述）'}</h3>
-          <div className="flex items-center text-slate-500 mb-6">
-            <Clock size={16} />{' '}
-            <span className="ml-2 font-medium">
-              {toTimeString(getTaskStartMinutes(currentFocusTask ?? { startMinutes: 20 * 60 }))} -{' '}
-              {toTimeString(
-                getTaskStartMinutes(currentFocusTask ?? { startMinutes: 20 * 60 }) +
-                  Number(currentFocusTask?.duration ?? 60),
-              )}
-            </span>
-          </div>
-          <button onClick={startFocusMode} className="w-full py-4 bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-2">
-            <Play size={18} /> 集中モード
-          </button>
+
+        <div className="bg-white rounded-3xl p-6 shadow-lg shadow-indigo-100 border border-indigo-50 mt-6">
+          {nextActionTask ? (
+            <>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700">次のタスク</span>
+              <h3 className="text-xl font-bold text-slate-800 mb-2 mt-3">{nextActionTask.title}</h3>
+              <div className="space-y-2 text-sm text-slate-500 mb-6">
+                <p className="flex items-center">
+                  <Clock size={16} />
+                  <span className="ml-2 font-medium">
+                    {toTimeString(getTaskStartMinutes(nextActionTask))} -{' '}
+                    {toTimeString(getTaskStartMinutes(nextActionTask) + Number(nextActionTask?.duration ?? 0))}
+                  </span>
+                </p>
+                <p>所要時間: {nextActionTask.duration}分</p>
+                <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                  {nextActionTask.type === 'study' ? '学習' : '予定'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setIsFocusMode(true)}
+                  className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+                >
+                  <Play size={18} /> 集中モード開始
+                </button>
+                <button
+                  onClick={() => toggleTaskCompletion(nextActionTask.id)}
+                  className="w-full py-3 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold flex items-center justify-center gap-2"
+                >
+                  <Check size={18} /> 完了
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-sm font-semibold text-emerald-600">🎉 本日の予定は完了です！</p>
+              <p className="text-slate-500 text-sm mt-2">この調子で明日も進めましょう。</p>
+            </div>
+          )}
         </div>
+
+        <section className="mt-10">
+          <h3 className="text-lg font-bold text-slate-800 mb-4">今日の予定</h3>
+          {timelineTasks.length > 0 ? (
+            <div className="relative pl-6 space-y-5">
+              <div className="absolute left-2 top-1 bottom-1 w-px bg-slate-200"></div>
+              {timelineTasks.map((task) => {
+                const isCompleted = Boolean(task.isCompleted);
+                return (
+                  <div key={task.id} className="relative">
+                    <div className={`absolute -left-[18px] top-1.5 h-3 w-3 rounded-full ${isCompleted ? 'bg-slate-300' : 'bg-indigo-500'}`}></div>
+                    <div className="bg-white rounded-2xl border border-slate-100 px-4 py-3">
+                      <p className={`text-xs font-semibold ${isCompleted ? 'text-slate-400' : 'text-slate-700'}`}>
+                        {toTimeString(getTaskStartMinutes(task))} - {toTimeString(getTaskStartMinutes(task) + Number(task.duration ?? 0))}
+                      </p>
+                      <p className={`mt-1 font-semibold ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                        {task.title}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400">表示できる予定はありません。</p>
+          )}
+        </section>
       </div>
     </div>
   );
