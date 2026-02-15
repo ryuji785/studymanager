@@ -132,6 +132,15 @@ function toDateKey(date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function parseDateInput(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.getFullYear() !== year || date.getMonth() + 1 !== month || date.getDate() !== day) return null;
+  return date;
+}
+
 function getWeekDays(weekStartDate) {
   return Array.from({ length: 7 }, (_, index) => {
     const date = addDays(weekStartDate, index);
@@ -189,6 +198,9 @@ export default function App() {
   const [editDuration, setEditDuration] = useState(60);
   const [editIsCompleted, setEditIsCompleted] = useState(false);
   const [isPlanSettingsOpen, setIsPlanSettingsOpen] = useState(false);
+  const [isPeriodPickerOpen, setIsPeriodPickerOpen] = useState(false);
+  const [periodStartInput, setPeriodStartInput] = useState(() => toDateKey(weekStartDate));
+  const [periodEndInput, setPeriodEndInput] = useState(() => toDateKey(addDays(weekStartDate, 6)));
   const [justAddedTaskId, setJustAddedTaskId] = useState(null);
   const [materialsTab, setMaterialsTab] = useState('desk');
   const [materialsView, setMaterialsView] = useState('card');
@@ -274,6 +286,43 @@ export default function App() {
     const nextWeekDays = getWeekDays(nextWeekStart);
     setWeekStartDate(nextWeekStart);
     setSelectedDate(nextWeekDays[currentIndex]?.key ?? nextWeekDays[0].key);
+  };
+
+  const openPeriodPicker = () => {
+    setPeriodStartInput(toDateKey(weekStartDate));
+    setPeriodEndInput(toDateKey(addDays(weekStartDate, 6)));
+    setIsPeriodPickerOpen(true);
+  };
+
+  const periodValidation = useMemo(() => {
+    const errors = [];
+    const start = parseDateInput(periodStartInput);
+    const end = parseDateInput(periodEndInput);
+
+    if (!periodStartInput) errors.push('開始日を選択してください。');
+    if (!periodEndInput) errors.push('終了日を選択してください。');
+    if (periodStartInput && !start) errors.push('開始日の形式が正しくありません。');
+    if (periodEndInput && !end) errors.push('終了日の形式が正しくありません。');
+    if (start && end && start > end) errors.push('開始日は終了日以前を選択してください。');
+
+    return {
+      start,
+      end,
+      errors,
+      isValid: errors.length === 0,
+    };
+  }, [periodEndInput, periodStartInput]);
+
+  const applyPeriodRange = () => {
+    if (!periodValidation.isValid || !periodValidation.start) return;
+
+    const nextWeekStart = getWeekStartMonday(periodValidation.start);
+    const nextWeekDays = getWeekDays(nextWeekStart);
+    const selected = nextWeekDays.find((day) => day.key >= periodStartInput && day.key <= periodEndInput);
+
+    setWeekStartDate(nextWeekStart);
+    setSelectedDate((selected?.key ?? nextWeekDays[0]?.key ?? periodStartInput));
+    setIsPeriodPickerOpen(false);
   };
 
   const handlePlanStartHourChange = (value) => {
@@ -830,7 +879,7 @@ export default function App() {
                 <input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
+                  className={`mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 ${periodStartInput && !periodValidation.start ? 'border-rose-300 focus:ring-rose-100' : 'border-slate-200 focus:ring-indigo-200'}`}
                   placeholder="予定名"
                 />
               </label>
@@ -841,7 +890,7 @@ export default function App() {
                   <select
                     value={editStartMinutes}
                     onChange={(e) => setEditStartMinutes(Number(e.target.value))}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
+                    className={`mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 ${periodEndInput && !periodValidation.end ? 'border-rose-300 focus:ring-rose-100' : 'border-slate-200 focus:ring-indigo-200'}`}
                   >
                     {editStartOptions.map((slotMinutes) => (
                       <option key={slotMinutes} value={slotMinutes}>
@@ -940,6 +989,81 @@ export default function App() {
                 保存
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPeriodPickerModal = () => {
+    if (!isPeriodPickerOpen) return null;
+    const hasValidationError = !periodValidation.isValid;
+
+    return (
+      <div className="fixed inset-0 z-[66] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+        <div
+          className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+          onClick={() => setIsPeriodPickerOpen(false)}
+        ></div>
+
+        <div
+          className="relative z-10 w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">期間を選択</h3>
+              <p className="text-xs text-slate-400">タップしてカレンダーから指定できます</p>
+            </div>
+            <button onClick={() => setIsPeriodPickerOpen(false)} className="p-2 bg-slate-100 rounded-full touch-manipulation">
+              <X size={20} className="text-slate-500" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <label className="block">
+              <span className="text-xs text-slate-500 font-bold">開始日</span>
+              <input
+                type="date"
+                value={periodStartInput}
+                onChange={(e) => setPeriodStartInput(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-xs text-slate-500 font-bold">終了日</span>
+              <input
+                type="date"
+                value={periodEndInput}
+                onChange={(e) => setPeriodEndInput(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </label>
+
+            {periodValidation.errors.length > 0 ? (
+              <ul className="space-y-1 text-xs text-rose-600">
+                {periodValidation.errors.map((error) => (
+                  <li key={error}>• {error}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setIsPeriodPickerOpen(false)}
+              className="py-3 rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm touch-manipulation active:scale-95 transition-transform"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={applyPeriodRange}
+              disabled={hasValidationError}
+              className="py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:bg-slate-300 disabled:cursor-not-allowed touch-manipulation active:scale-95 transition-transform"
+            >
+              反映する
+            </button>
           </div>
         </div>
       </div>
@@ -1369,15 +1493,21 @@ export default function App() {
             <div className="rounded-2xl border border-slate-100 bg-white px-3 py-2 flex items-center justify-between">
               <button
                 onClick={() => shiftWeek(-1)}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 touch-manipulation active:scale-95 transition-transform"
               >
                 <ChevronRight size={14} className="rotate-180" />
                 前の週
               </button>
-              <span className="text-xs font-semibold text-slate-600">{currentWeekLabel}</span>
+              <button
+                onClick={openPeriodPicker}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 touch-manipulation active:scale-95 transition-transform"
+              >
+                <Calendar size={14} className="text-indigo-500" />
+                {currentWeekLabel}
+              </button>
               <button
                 onClick={() => shiftWeek(1)}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 touch-manipulation active:scale-95 transition-transform"
               >
                 次の週
                 <ChevronRight size={14} />
@@ -1394,7 +1524,7 @@ export default function App() {
                 <button
                   key={day.key}
                   onClick={() => setSelectedDate(day.key)}
-                  className={`snap-start shrink-0 w-[23%] min-w-[84px] sm:w-20 h-20 flex flex-col items-center justify-center rounded-2xl border transition-all ${
+                  className={`snap-start shrink-0 w-[23%] min-w-[84px] sm:w-20 h-20 flex flex-col items-center justify-center rounded-2xl border transition-all touch-manipulation active:scale-95 ${
                     isSelected
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200 scale-105'
                       : 'bg-white text-slate-500 border-slate-100'
@@ -1448,7 +1578,7 @@ export default function App() {
                       {/* Empty Slot (Clickable Area) */}
                       <button 
                         onClick={() => openAddModal(slotMinutes)}
-                        className="w-full h-full rounded-xl border-2 border-dashed border-slate-100 flex items-center justify-center text-slate-300 gap-2 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-400 transition-colors group"
+                        className="w-full h-full rounded-xl border-2 border-dashed border-slate-100 flex items-center justify-center text-slate-300 gap-2 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-400 transition-colors group touch-manipulation active:scale-[0.99]"
                       >
                         <Plus size={16} className="group-hover:scale-110 transition-transform" />
                         <span className="text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">予定を入れる</span>
@@ -1794,6 +1924,7 @@ export default function App() {
     <div className="bg-slate-50 min-h-screen w-full font-sans antialiased text-slate-600">
       {renderAddTaskSheet()}
       {renderEditTaskSheet()}
+      {renderPeriodPickerModal()}
       {renderPlanSettingsModal()}
       {renderAddBookSheet()}
       {renderBookDetailModal()}
