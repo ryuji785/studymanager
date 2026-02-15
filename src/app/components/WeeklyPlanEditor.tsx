@@ -610,7 +610,13 @@ export function WeeklyPlanEditor({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-sm">期間</Label>
-              <PeriodSelector value={createPeriod} onChange={setCreatePeriod} mode="week" weekStartsOn={1} />
+              <PeriodSelector
+                value={createPeriod}
+                onChange={setCreatePeriod}
+                mode="week"
+                weekStartsOn={1}
+                onApply={() => setCreateDialogOpen(false)}
+              />
               <p className="text-xs text-gray-500">表示は {`YYYY-MM-DD〜YYYY-MM-DD`} に統一しています。</p>
               {isCreatePeriodInvalid && (
                 <p className="text-xs text-red-600">1週間を超える期間は指定できません。期間を見直してください。</p>

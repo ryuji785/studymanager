@@ -1,7 +1,7 @@
 ﻿import * as React from 'react';
 import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarCheck2, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 import { cn } from './utils';
 import { Button } from './button';
@@ -36,6 +36,7 @@ export function PeriodSelector({
   weekStartsOn,
   disabled,
   className,
+  onApply,
 }: {
   value: PeriodValue;
   onChange: (next: PeriodValue) => void;
@@ -44,6 +45,7 @@ export function PeriodSelector({
   weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   disabled?: boolean;
   className?: string;
+  onApply?: () => void;
 }) {
   const startDate = parseIsoDate(value.start);
   const endDate = parseIsoDate(value.end);
@@ -53,6 +55,7 @@ export function PeriodSelector({
   const weekStartsOnLabel = typeof weekStartsOn === 'number' ? WEEKDAY_LABELS[weekStartsOn] : null;
 
   const [open, setOpen] = React.useState(false);
+  const [pendingWeekStart, setPendingWeekStart] = React.useState<Date | null>(null);
   const [pendingRange, setPendingRange] = React.useState<DateRange | undefined>(() => {
     if (!startDate || !endDate) return undefined;
     return { from: startDate, to: endDate };
@@ -61,9 +64,11 @@ export function PeriodSelector({
   React.useEffect(() => {
     if (!open) return;
     if (!startDate || !endDate) {
+      setPendingWeekStart(null);
       setPendingRange(undefined);
       return;
     }
+    setPendingWeekStart(startDate);
     setPendingRange({ from: startDate, to: endDate });
   }, [open, startDate?.getTime(), endDate?.getTime()]);
 
@@ -117,16 +122,31 @@ export function PeriodSelector({
               </div>
               <Calendar
                 mode="single"
-                selected={startDate ?? undefined}
+                selected={pendingWeekStart ?? undefined}
                 onSelect={(date) => {
                   if (!date) return;
                   const start = typeof weekStartsOn === 'number' ? startOfWeek(date, { weekStartsOn }) : date;
-                  const end = addDays(start, 6);
-                  onChange({ start: toIsoDate(start), end: toIsoDate(end) });
-                  setOpen(false);
+                  setPendingWeekStart(start);
                 }}
                 initialFocus
               />
+              <div className="flex justify-end px-2 pb-2">
+                <Button
+                  type="button"
+                  size="icon"
+                  disabled={disabled || !pendingWeekStart}
+                  aria-label="週の選択を確定"
+                  onClick={() => {
+                    if (!pendingWeekStart) return;
+                    const end = addDays(pendingWeekStart, 6);
+                    onChange({ start: toIsoDate(pendingWeekStart), end: toIsoDate(end) });
+                    setOpen(false);
+                    onApply?.();
+                  }}
+                >
+                  <CalendarCheck2 className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
@@ -152,6 +172,7 @@ export function PeriodSelector({
                     if (!pendingRange?.from || !pendingRange?.to || hasRangeLimitError) return;
                     onChange({ start: toIsoDate(pendingRange.from), end: toIsoDate(pendingRange.to) });
                     setOpen(false);
+                    onApply?.();
                   }}
                 >
                   反映する
