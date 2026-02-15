@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Home, Calendar, BookOpen, Footprints, Settings, Check, Plus, MoreHorizontal, ChevronRight, Book, Play, Pause, X, Zap, Crown, BarChart2, Trash2, Clock, RefreshCw } from 'lucide-react';
+import { motion, useDragControls } from 'motion/react';
 
 const DEFAULT_PLAN_START_HOUR = 7;
 const DEFAULT_PLAN_END_HOUR = 23;
@@ -146,10 +147,7 @@ function getWeekDays(weekStartDate) {
   });
 }
 
-function formatHourLabel(hour) {
-  if (hour === 24) return '24:00';
-  return `${String(hour).padStart(2, '0')}:00`;
-}
+
 
 function getTaskDayOfMonth(task) {
   if (typeof task?.day === 'number') return task.day;
@@ -165,6 +163,216 @@ function getTaskStartHour(task) {
   return Math.floor(getTaskStartMinutes(task) / 60);
 }
 
+function calculateTaskLayout(dayTasks) {
+  if (!dayTasks || dayTasks.length === 0) return {};
+
+  const sorted = [...dayTasks].sort((a, b) => {
+    const startA = getTaskStartMinutes(a);
+    const startB = getTaskStartMinutes(b);
+    if (startA !== startB) return startA - startB;
+    return (Number(b.duration) || 0) - (Number(a.duration) || 0);
+  });
+
+  const clusters = [];
+  let currentCluster = [];
+  let clusterEnd = -1;
+
+  for (const task of sorted) {
+    const start = getTaskStartMinutes(task);
+    const end = start + (Number(task.duration) || 0);
+
+    if (currentCluster.length === 0) {
+      currentCluster.push(task);
+      clusterEnd = end;
+    } else {
+      if (start < clusterEnd) {
+        currentCluster.push(task);
+        clusterEnd = Math.max(clusterEnd, end);
+      } else {
+        clusters.push(currentCluster);
+        currentCluster = [task];
+        clusterEnd = end;
+      }
+    }
+  }
+  if (currentCluster.length > 0) clusters.push(currentCluster);
+
+  const layout = {};
+  for (const cluster of clusters) {
+    const columns = [];
+    for (const task of cluster) {
+      let placedColIdx = -1;
+      for (let i = 0; i < columns.length; i++) {
+        const lastTaskId = columns[i][columns[i].length - 1];
+        const lastTask = cluster.find((t) => t.id === lastTaskId);
+        const lastEnd = getTaskStartMinutes(lastTask) + (Number(lastTask.duration) || 0);
+        if (lastEnd <= getTaskStartMinutes(task)) {
+          columns[i].push(task.id);
+          placedColIdx = i;
+          break;
+        }
+      }
+      if (placedColIdx === -1) {
+        columns.push([task.id]);
+        placedColIdx = columns.length - 1;
+      }
+      layout[task.id] = { colIndex: placedColIdx };
+    }
+
+    const totalCols = columns.length;
+    const widthPct = 100 / totalCols;
+    for (const task of cluster) {
+      const colIdx = layout[task.id].colIndex;
+      layout[task.id] = {
+        left: `${colIdx * widthPct}%`,
+        width: `${widthPct}%`,
+        zIndex: colIdx + 10,
+      };
+    }
+  }
+  return layout;
+}
+
+const TaskItem = ({
+  task,
+  layoutStyle,
+  planStartMinutes,
+  planEndMinutes,
+  firstMinute,
+  rowHeight,
+  slotMinutes,
+  justAddedTaskId,
+  onTaskClick,
+  onTaskDelete,
+  onUpdateTask,
+}) => {
+  const controls = useDragControls();
+  const startMinutes = getTaskStartMinutes(task);
+  const duration = Number(task.duration || 0);
+  const endMinutes = startMinutes + duration;
+
+  const visibleStartMinutes = Math.max(startMinutes, planStartMinutes);
+  const visibleEndMinutes = Math.min(endMinutes, planEndMinutes);
+
+  if (visibleEndMinutes <= visibleStartMinutes) return null;
+
+  const top = ((visibleStartMinutes - firstMinute) / slotMinutes) * rowHeight + 4;
+  const rawHeight = ((visibleEndMinutes - visibleStartMinutes) / slotMinutes) * rowHeight - 8;
+  const height = Math.max(28, rawHeight);
+  const isCompleted = Boolean(task.isCompleted);
+
+  const [isDraggable, setIsDraggable] = useState(false);
+  const longPressTimer = useRef(null);
+  const wasDragged = useRef(false);
+
+  const handlePointerDown = (e) => {
+    wasDragged.current = false;
+    if (e.pointerType === 'touch') {
+      longPressTimer.current = setTimeout(() => {
+        setIsDraggable(true);
+        try {
+          controls.start(e);
+          if (navigator.vibrate) navigator.vibrate(50);
+        } catch (err) {
+          // Ignore async start errors
+        }
+      }, 500);
+    } else {
+      setIsDraggable(true);
+      controls.start(e);
+    }
+  };
+
+  const handlePointerUp = () => {
+    clearTimeout(longPressTimer.current);
+    if (!wasDragged.current) {
+      setIsDraggable(false);
+    }
+  };
+
+  return (
+    <motion.div
+      className="absolute pl-1 pr-1"
+      style={{
+        top: top,
+        left: layoutStyle?.left || '0%',
+        width: layoutStyle?.width || '100%',
+        zIndex: isDraggable ? 50 : (layoutStyle?.zIndex || 10),
+        height: height,
+        touchAction: 'none',
+      }}
+      drag={isDraggable ? 'y' : false}
+      dragControls={controls}
+      dragMomentum={false}
+      dragElastic={0}
+      onDragStart={() => {
+        wasDragged.current = true;
+      }}
+      onDragEnd={(e, info) => {
+        setIsDraggable(false);
+        const deltaY = info.offset.y;
+        const deltaMinutes = Math.round((deltaY / rowHeight) * slotMinutes / 5) * 5;
+        if (deltaMinutes !== 0) {
+          const newStart = Math.max(0, startMinutes + deltaMinutes);
+          onUpdateTask(task.id, newStart);
+        }
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      initial={false}
+    >
+      <div
+        onClick={(e) => {
+          if (!wasDragged.current) onTaskClick(task);
+        }}
+        className={`relative group h-full ${task.color} rounded-xl p-3 border shadow-sm transition-all ${isCompleted ? 'opacity-70 saturate-75' : ''
+          } ${justAddedTaskId === task.id ? 'animate-task-pop' : ''} ${isDraggable ? 'scale-105 shadow-xl ring-2 ring-indigo-400 cursor-grabbing' : 'cursor-pointer hover:scale-[1.01]'
+          }`}
+      >
+        <div className="flex justify-between items-start gap-2 h-full overflow-hidden">
+          <div className="flex flex-col h-full min-w-0 flex-1">
+            <span className="text-xs font-bold opacity-80 truncate pr-1">
+              {task.title}
+            </span>
+            <div className="mt-1 flex items-center gap-2 flex-wrap content-start">
+              <span className="text-[10px] font-medium bg-white/60 px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
+                <Clock size={10} /> {toTimeString(startMinutes)} - {toTimeString(endMinutes)}
+              </span>
+              <span className="text-[10px] font-medium bg-white/60 px-1.5 py-0.5 rounded shrink-0">
+                {task.duration}分
+              </span>
+              {isCompleted && (
+                <span className="text-[10px] font-medium bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded inline-flex items-center gap-1 shrink-0">
+                  <Check size={10} />
+                  完了
+                </span>
+              )}
+            </div>
+            {/* Only show prompt if tall enough */}
+            {height > 50 && (
+              <div className="mt-auto text-[10px] opacity-70 hidden sm:block">
+                {isDraggable ? '上下にドラッグして移動' : 'タップで編集 / 長押しで移動'}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onTaskDelete(task.id);
+            }}
+            className="p-1 hover:bg-black/10 rounded text-current opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+            title="削除"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('plan'); // Default to plan for this demo
   const [isFocusMode, setIsFocusMode] = useState(false);
@@ -172,7 +380,7 @@ export default function App() {
   const [focusDurationMinutes, setFocusDurationMinutes] = useState(DEFAULT_FOCUS_MINUTES);
   const [isFocusRunning, setIsFocusRunning] = useState(false);
   const [focusTaskTitle, setFocusTaskTitle] = useState('学習');
-  
+
   // --- State for Plan Management ---
   const [weekStartDate, setWeekStartDate] = useState(() => getWeekStartMonday(new Date()));
   const [selectedDate, setSelectedDate] = useState(() =>
@@ -193,7 +401,7 @@ export default function App() {
       isCompleted: false,
     },
   ]);
-  
+
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null); // { date, startMinutes } or existing task object
@@ -353,9 +561,9 @@ export default function App() {
         prev.map((entry) =>
           entry.id === book.id
             ? {
-                ...entry,
-                lastUsed: '今日',
-              }
+              ...entry,
+              lastUsed: '今日',
+            }
             : entry,
         ),
       );
@@ -373,9 +581,9 @@ export default function App() {
       prev.map((task) =>
         task.id === taskId
           ? {
-              ...task,
-              isCompleted: !task.isCompleted,
-            }
+            ...task,
+            isCompleted: !task.isCompleted,
+          }
           : task,
       ),
     );
@@ -500,12 +708,12 @@ export default function App() {
       prev.map((task) =>
         task.id === editingTask.id
           ? {
-              ...task,
-              title: editTitle.trim() || task.title,
-              startMinutes: Number(editStartMinutes),
-              duration: Number(editDuration),
-              isCompleted: editIsCompleted,
-            }
+            ...task,
+            title: editTitle.trim() || task.title,
+            startMinutes: Number(editStartMinutes),
+            duration: Number(editDuration),
+            isCompleted: editIsCompleted,
+          }
           : task,
       ),
     );
@@ -570,6 +778,19 @@ export default function App() {
     }
   };
 
+  const updateTask = (taskId, newStartMinutes) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === taskId
+          ? {
+            ...task,
+            startMinutes: Number(newStartMinutes),
+          }
+          : task,
+      ),
+    );
+  };
+
   const todayGreeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 5) return 'こんばんは';
@@ -632,9 +853,8 @@ export default function App() {
   const TabButton = ({ id, icon: Icon, label }) => (
     <button
       onClick={() => setActiveTab(id)}
-      className={`flex flex-col items-center justify-center w-full py-3 transition-all duration-300 ${
-        activeTab === id ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-500'
-      }`}
+      className={`flex flex-col items-center justify-center w-full py-3 transition-all duration-300 ${activeTab === id ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-500'
+        }`}
     >
       <Icon size={24} strokeWidth={activeTab === id ? 2.5 : 2} className="mb-1" />
       <span className="text-[10px] font-medium">{label}</span>
@@ -681,8 +901,8 @@ export default function App() {
                     {focusSecondsLeft === 0
                       ? '1セット完了です'
                       : isFocusRunning
-                      ? '集中タイム進行中'
-                      : '準備ができたら開始'}
+                        ? '集中タイム進行中'
+                        : '準備ができたら開始'}
                   </p>
                   <p className="mt-1 text-xs text-indigo-200">{focusTaskTitle}</p>
                 </div>
@@ -763,18 +983,18 @@ export default function App() {
     return (
       <div className="fixed inset-0 z-50 flex flex-col justify-end animate-fade-in">
         {/* Backdrop */}
-        <div 
+        <div
           className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           onClick={() => setIsAddModalOpen(false)}
         ></div>
-        
+
         {/* Sheet Content */}
         <div
           className="bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl relative z-10 max-h-[85vh] overflow-y-auto sm:mx-auto sm:mb-6 sm:w-full sm:max-w-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6"></div>
-          
+
           <div className="flex justify-between items-center mb-6">
             <div>
               <h3 className="text-lg font-bold text-slate-800">予定を入れる</h3>
@@ -798,12 +1018,12 @@ export default function App() {
 
             {/* Slider */}
             <div className="relative mb-6 px-1 py-1">
-              <input 
-                type="range" 
-                min="5" 
-                max="180" 
-                step="5" 
-                value={addTaskDuration} 
+              <input
+                type="range"
+                min="5"
+                max="180"
+                step="5"
+                value={addTaskDuration}
                 onChange={(e) => setAddTaskDuration(Number(e.target.value))}
                 className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
               />
@@ -818,14 +1038,13 @@ export default function App() {
             {/* Preset Buttons */}
             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
               {[30, 60, 90, 120].map((m) => (
-                <button 
+                <button
                   key={m}
                   onClick={() => setAddTaskDuration(m)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all border ${
-                    addTaskDuration === m 
-                      ? 'bg-indigo-600 text-white border-indigo-600' 
-                      : 'bg-white text-slate-600 border-slate-200'
-                  }`}
+                  className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all border ${addTaskDuration === m
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-600 border-slate-200'
+                    }`}
                 >
                   {m}分
                 </button>
@@ -859,12 +1078,12 @@ export default function App() {
 
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-6 pl-1">その他</h4>
             <div className="flex gap-3">
-               <button onClick={() => addTask({title: "休憩", color: "bg-slate-100 text-slate-600", type: "break"}, addTaskDuration)} className="flex-1 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 active:scale-95 transition-transform">
-                 ☕ 休憩 {addTaskDuration}分
-               </button>
-               <button onClick={() => addTask({title: "予備/復習", color: "bg-indigo-50 text-indigo-600", type: "review"}, addTaskDuration)} className="flex-1 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 active:scale-95 transition-transform">
-                 📝 復習 {addTaskDuration}分
-               </button>
+              <button onClick={() => addTask({ title: "休憩", color: "bg-slate-100 text-slate-600", type: "break" }, addTaskDuration)} className="flex-1 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 active:scale-95 transition-transform">
+                ☕ 休憩 {addTaskDuration}分
+              </button>
+              <button onClick={() => addTask({ title: "予備/復習", color: "bg-indigo-50 text-indigo-600", type: "review" }, addTaskDuration)} className="flex-1 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 active:scale-95 transition-transform">
+                📝 復習 {addTaskDuration}分
+              </button>
             </div>
           </div>
         </div>
@@ -956,11 +1175,10 @@ export default function App() {
                   <button
                     key={m}
                     onClick={() => setEditDuration(m)}
-                    className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all border ${
-                      editDuration === m
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-slate-600 border-slate-200'
-                    }`}
+                    className={`flex-shrink-0 px-4 py-2 rounded-full text-xs font-bold transition-all border ${editDuration === m
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-600 border-slate-200'
+                      }`}
                   >
                     {m}分
                   </button>
@@ -972,21 +1190,19 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setEditIsCompleted(false)}
-                    className={`rounded-lg px-3 py-2 text-xs font-semibold border ${
-                      !editIsCompleted
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-slate-600 border-slate-200'
-                    }`}
+                    className={`rounded-lg px-3 py-2 text-xs font-semibold border ${!editIsCompleted
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-600 border-slate-200'
+                      }`}
                   >
                     未完了
                   </button>
                   <button
                     onClick={() => setEditIsCompleted(true)}
-                    className={`rounded-lg px-3 py-2 text-xs font-semibold border inline-flex items-center justify-center gap-1 ${
-                      editIsCompleted
-                        ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-white text-slate-600 border-slate-200'
-                    }`}
+                    className={`rounded-lg px-3 py-2 text-xs font-semibold border inline-flex items-center justify-center gap-1 ${editIsCompleted
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-slate-600 border-slate-200'
+                      }`}
                   >
                     <Check size={12} />
                     完了
@@ -1240,11 +1456,10 @@ export default function App() {
                   <button
                     key={category}
                     onClick={() => setNewBookCategory(category)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                      newBookCategory === category
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-slate-600 border-slate-200'
-                    }`}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${newBookCategory === category
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-600 border-slate-200'
+                      }`}
                   >
                     {category}
                   </button>
@@ -1261,9 +1476,8 @@ export default function App() {
                     <button
                       key={palette.key}
                       onClick={() => setNewBookColorKey(palette.key)}
-                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        isActive ? 'border-slate-700 bg-slate-100 text-slate-800' : 'border-slate-200 bg-white text-slate-600'
-                      }`}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${isActive ? 'border-slate-700 bg-slate-100 text-slate-800' : 'border-slate-200 bg-white text-slate-600'
+                        }`}
                     >
                       <span className={`h-4 w-4 rounded-full ${palette.card.split(' ')[0]}`}></span>
                       {palette.label}
@@ -1365,11 +1579,10 @@ export default function App() {
                   <button
                     key={category}
                     onClick={() => updateBookDraft({ category })}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                      bookDraft.category === category
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-slate-600 border-slate-200'
-                    }`}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${bookDraft.category === category
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-slate-600 border-slate-200'
+                      }`}
                   >
                     {category}
                   </button>
@@ -1386,9 +1599,8 @@ export default function App() {
                     <button
                       key={palette.key}
                       onClick={() => updateBookDraftColor(palette.key)}
-                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        isActive ? 'border-slate-700 bg-slate-100 text-slate-800' : 'border-slate-200 bg-white text-slate-600'
-                      }`}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${isActive ? 'border-slate-700 bg-slate-100 text-slate-800' : 'border-slate-200 bg-white text-slate-600'
+                        }`}
                     >
                       <span className={`h-4 w-4 rounded-full ${palette.card.split(' ')[0]}`}></span>
                       {palette.label}
@@ -1403,21 +1615,19 @@ export default function App() {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => updateBookDraft({ status: 'active' })}
-                  className={`rounded-xl px-3 py-2 text-sm font-semibold border ${
-                    !isCompleted
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-slate-600 border-slate-200'
-                  }`}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold border ${!isCompleted
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-600 border-slate-200'
+                    }`}
                 >
                   机の上
                 </button>
                 <button
                   onClick={() => updateBookDraft({ status: 'completed' })}
-                  className={`rounded-xl px-3 py-2 text-sm font-semibold border ${
-                    isCompleted
-                      ? 'bg-amber-500 text-white border-amber-500'
-                      : 'bg-amber-50 text-amber-700 border-amber-200'
-                  }`}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold border ${isCompleted
+                    ? 'bg-amber-500 text-white border-amber-500'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                    }`}
                 >
                   殿堂入り
                 </button>
@@ -1532,6 +1742,7 @@ export default function App() {
     const daysTasks = tasks
       .filter((t) => t.date === selectedDate)
       .sort((a, b) => getTaskStartMinutes(a) - getTaskStartMinutes(b));
+    const layoutMap = calculateTaskLayout(daysTasks);
     const slots = planSlots;
     const rowHeight = PLAN_ROW_HEIGHT;
     const firstMinute = slots[0] ?? planStartMinutes;
@@ -1582,11 +1793,10 @@ export default function App() {
                 <button
                   key={day.key}
                   onClick={() => setSelectedDate(day.key)}
-                  className={`snap-start shrink-0 w-[23%] min-w-[84px] sm:w-20 h-20 flex flex-col items-center justify-center rounded-2xl border transition-all touch-manipulation active:scale-95 ${
-                    isSelected
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200 scale-105'
-                      : 'bg-white text-slate-500 border-slate-100'
-                  }`}
+                  className={`snap-start shrink-0 w-[23%] min-w-[84px] sm:w-20 h-20 flex flex-col items-center justify-center rounded-2xl border transition-all touch-manipulation active:scale-95 ${isSelected
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200 scale-105'
+                    : 'bg-white text-slate-500 border-slate-100'
+                    }`}
                 >
                   <span className="text-xs font-medium mb-1">{day.day}</span>
                   <span className="text-base sm:text-lg font-bold">
@@ -1615,9 +1825,9 @@ export default function App() {
             <div className="bg-white rounded-3xl p-1 shadow-sm border border-slate-100 relative overflow-hidden">
               {/* Grid Header */}
               <div className="absolute top-0 right-0 p-3 z-10">
-                 <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded-full border border-slate-100">
-                   タップして追加
-                 </span>
+                <span className="text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded-full border border-slate-100">
+                  タップして追加
+                </span>
               </div>
 
               {slots.map((slotMinutes) => {
@@ -1630,11 +1840,11 @@ export default function App() {
                         {toTimeString(slotMinutes)}
                       </span>
                     </div>
-                    
+
                     {/* Slot Area */}
                     <div className="flex-1 p-1 relative">
                       {/* Empty Slot (Clickable Area) */}
-                      <button 
+                      <button
                         onClick={() => openAddModal(slotMinutes)}
                         className="w-full h-full rounded-xl border-2 border-dashed border-slate-100 flex items-center justify-center text-slate-300 gap-2 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-400 transition-colors group touch-manipulation active:scale-[0.99]"
                       >
@@ -1648,67 +1858,22 @@ export default function App() {
 
               {/* Duration-aware Task Blocks */}
               <div className="absolute left-14 right-0 top-0 bottom-0 pointer-events-none">
-                {daysTasks.map((task) => {
-                  const startMinutes = getTaskStartMinutes(task);
-                  const taskEndMinutes = startMinutes + Number(task.duration || 0);
-                  const visibleStartMinutes = Math.max(startMinutes, planStartMinutes);
-                  const visibleEndMinutes = Math.min(taskEndMinutes, planEndMinutes);
-                  if (visibleEndMinutes <= visibleStartMinutes) return null;
-
-                  const top = ((visibleStartMinutes - firstMinute) / PLAN_SLOT_MINUTES) * rowHeight + 4;
-                  if (top < 0 || top >= totalHeight) return null;
-                  const maxHeight = Math.max(24, totalHeight - top - 4);
-                  const rawHeight = ((visibleEndMinutes - visibleStartMinutes) / PLAN_SLOT_MINUTES) * rowHeight - 8;
-                  const height = Math.max(28, Math.min(rawHeight, maxHeight));
-                  const endMinutes = startMinutes + Number(task.duration || 0);
-                  const isCompleted = Boolean(task.isCompleted);
-
-                  return (
-                    <div
-                      key={task.id}
-                      className="absolute left-1 right-1 pointer-events-auto"
-                      style={{ top: `${top}px`, height: `${height}px` }}
-                    >
-                      <div
-                        onClick={() => openEditTaskModal(task)}
-                        className={`relative group h-full ${task.color} rounded-xl p-3 border shadow-sm transition-transform cursor-pointer hover:scale-[1.01] ${
-                          isCompleted ? 'opacity-70 saturate-75' : ''
-                        } ${justAddedTaskId === task.id ? 'animate-task-pop' : ''}`}
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <span className="text-xs font-bold opacity-80 truncate pr-2">
-                            {task.title}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeTask(task.id);
-                            }}
-                            className="p-1 hover:bg-black/10 rounded text-current opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="削除"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                        <div className="mt-1 flex items-center gap-2">
-                          <span className="text-[10px] font-medium bg-white/60 px-1.5 py-0.5 rounded flex items-center gap-1">
-                            <Clock size={10} /> {toTimeString(startMinutes)} - {toTimeString(endMinutes)}
-                          </span>
-                          <span className="text-[10px] font-medium bg-white/60 px-1.5 py-0.5 rounded">
-                            {task.duration}分
-                          </span>
-                          {isCompleted ? (
-                            <span className="text-[10px] font-medium bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
-                              <Check size={10} />
-                              完了
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="mt-1 text-[10px] opacity-70">タップして編集</div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {daysTasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    layoutStyle={layoutMap[task.id]}
+                    planStartMinutes={planStartMinutes}
+                    planEndMinutes={planEndMinutes}
+                    firstMinute={firstMinute}
+                    rowHeight={rowHeight}
+                    slotMinutes={PLAN_SLOT_MINUTES}
+                    justAddedTaskId={justAddedTaskId}
+                    onTaskClick={openEditTaskModal}
+                    onTaskDelete={removeTask}
+                    onUpdateTask={updateTask}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -1744,21 +1909,19 @@ export default function App() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setMaterialsTab('desk')}
-                className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
-                  materialsTab === 'desk'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                }`}
+                className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${materialsTab === 'desk'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  }`}
               >
                 机の上
               </button>
               <button
                 onClick={() => setMaterialsTab('hall')}
-                className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
-                  materialsTab === 'hall'
-                    ? 'bg-amber-500 text-white shadow-sm'
-                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                }`}
+                className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${materialsTab === 'hall'
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                  }`}
               >
                 殿堂入り
               </button>
@@ -1770,21 +1933,19 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setMaterialsView('card')}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                    materialsView === 'card'
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-slate-600 border-slate-200'
-                  }`}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${materialsView === 'card'
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-600 border-slate-200'
+                    }`}
                 >
                   カード
                 </button>
                 <button
                   onClick={() => setMaterialsView('list')}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                    materialsView === 'list'
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-slate-600 border-slate-200'
-                  }`}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${materialsView === 'list'
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-600 border-slate-200'
+                    }`}
                 >
                   リスト
                 </button>
@@ -1843,11 +2004,10 @@ export default function App() {
                   <button
                     key={book.id}
                     onClick={() => openBookDetailModal(book)}
-                    className={`rounded-2xl p-4 shadow-sm border flex flex-col aspect-[3/4] relative overflow-hidden text-left transition-transform hover:scale-[1.01] ${
-                      isCompleted
-                        ? 'bg-amber-50 border-amber-200'
-                        : 'bg-white border-slate-100'
-                    }`}
+                    className={`rounded-2xl p-4 shadow-sm border flex flex-col aspect-[3/4] relative overflow-hidden text-left transition-transform hover:scale-[1.01] ${isCompleted
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-white border-slate-100'
+                      }`}
                   >
                     <div className={`absolute top-0 left-0 w-full h-2 ${isCompleted ? 'bg-amber-300' : book.color.split(' ')[0]}`}></div>
 
@@ -1856,9 +2016,8 @@ export default function App() {
                     </span>
 
                     <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 text-slate-700/60 ${
-                        isCompleted ? 'bg-amber-200' : book.color.split(' ')[0]
-                      }`}
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 text-slate-700/60 ${isCompleted ? 'bg-amber-200' : book.color.split(' ')[0]
+                        }`}
                     >
                       <Book size={20} />
                     </div>
@@ -1873,11 +2032,10 @@ export default function App() {
                     </div>
 
                     <span
-                      className={`absolute bottom-3 right-3 rounded-full px-2 py-1 text-[10px] font-bold ${
-                        isCompleted
-                          ? 'bg-amber-200 text-amber-800'
-                          : 'bg-indigo-100 text-indigo-700'
-                      }`}
+                      className={`absolute bottom-3 right-3 rounded-full px-2 py-1 text-[10px] font-bold ${isCompleted
+                        ? 'bg-amber-200 text-amber-800'
+                        : 'bg-indigo-100 text-indigo-700'
+                        }`}
                     >
                       {badgeLabel}
                     </span>
@@ -1904,16 +2062,14 @@ export default function App() {
                   <button
                     key={book.id}
                     onClick={() => openBookDetailModal(book)}
-                    className={`w-full rounded-2xl border p-4 text-left flex items-center gap-3 transition-colors ${
-                      isCompleted
-                        ? 'bg-amber-50 border-amber-200'
-                        : 'bg-white border-slate-100 hover:bg-slate-50'
-                    }`}
+                    className={`w-full rounded-2xl border p-4 text-left flex items-center gap-3 transition-colors ${isCompleted
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-white border-slate-100 hover:bg-slate-50'
+                      }`}
                   >
                     <div
-                      className={`h-12 w-12 rounded-xl flex items-center justify-center text-slate-700/60 shrink-0 ${
-                        isCompleted ? 'bg-amber-200' : book.color.split(' ')[0]
-                      }`}
+                      className={`h-12 w-12 rounded-xl flex items-center justify-center text-slate-700/60 shrink-0 ${isCompleted ? 'bg-amber-200' : book.color.split(' ')[0]
+                        }`}
                     >
                       <Book size={20} />
                     </div>
@@ -1922,11 +2078,10 @@ export default function App() {
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="text-sm font-bold text-slate-700 truncate">{book.title}</h3>
                         <span
-                          className={`rounded-full px-2 py-1 text-[10px] font-bold shrink-0 ${
-                            isCompleted
-                              ? 'bg-amber-200 text-amber-800'
-                              : 'bg-indigo-100 text-indigo-700'
-                          }`}
+                          className={`rounded-full px-2 py-1 text-[10px] font-bold shrink-0 ${isCompleted
+                            ? 'bg-amber-200 text-amber-800'
+                            : 'bg-indigo-100 text-indigo-700'
+                            }`}
                         >
                           {badgeLabel}
                         </span>
@@ -1953,8 +2108,8 @@ export default function App() {
               {isCategoryFiltering
                 ? '選択中のカテゴリに該当する本がありません'
                 : materialsTab === 'desk'
-                ? '机の上に本がありません'
-                : '殿堂入りの本はまだありません'}
+                  ? '机の上に本がありません'
+                  : '殿堂入りの本はまだありません'}
             </div>
           ) : null}
         </div>
@@ -2060,10 +2215,10 @@ export default function App() {
       currentStreak >= 14
         ? '驚異的な継続力です。この調子で合格まで駆け抜けましょう！'
         : currentStreak >= 7
-        ? '素晴らしいペースです！習慣化が完全に軌道に乗っています。'
-        : totalMinutes / 60 >= 100
-        ? '100時間の壁を突破しました。実力が確実に積み上がっています！'
-        : '今日の一歩が未来を変えます。小さくても前進を続けましょう。';
+          ? '素晴らしいペースです！習慣化が完全に軌道に乗っています。'
+          : totalMinutes / 60 >= 100
+            ? '100時間の壁を突破しました。実力が確実に積み上がっています！'
+            : '今日の一歩が未来を変えます。小さくても前進を続けましょう。';
 
     return {
       totalHours: Math.round(totalMinutes / 60),
@@ -2219,7 +2374,7 @@ export default function App() {
       {renderAddBookSheet()}
       {renderBookDetailModal()}
       {renderFocusOverlay()}
-      
+
       <div className="mx-auto w-full max-w-[1200px] min-h-screen bg-slate-50 relative flex flex-col overflow-y-auto hide-scrollbar lg:shadow-2xl">
         <main className="flex-1">
           {activeTab === 'home' && renderHome()}
