@@ -3,6 +3,7 @@ node_modules/
 
 # Build outputs
 /dist/
+server/dist/
 /.vite/
 
 # Logs
@@ -17,6 +18,10 @@ coverage/
 # Env files
 .env
 .env.*
+!.env.sample
+
+# SQLite data files
+server/data/
 
 # OS files
 .DS_Store

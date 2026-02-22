@@ -1,7 +1,8 @@
 
 import { createRoot } from 'react-dom/client';
-import App from './StudyAppUI.jsx';
+import App from './app/App';
 import './styles/index.css';
+import './styles/app.css';
 
 createRoot(document.getElementById('root')!).render(<App />);
-  
+
