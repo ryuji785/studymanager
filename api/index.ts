@@ -61,6 +61,24 @@ async function ensureDb() {
   dbReady = true;
 }
 
+// ========== Validation helpers ==========
+function isValidDate(s: any): boolean {
+  if (typeof s !== 'string') return false;
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
+}
+function isValidId(v: any): boolean {
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0;
+}
+function requireFields(body: any, fields: string[]): string | null {
+  for (const f of fields) {
+    if (body[f] === undefined || body[f] === null || (typeof body[f] === 'string' && body[f].trim() === '')) {
+      return `${f} is required`;
+    }
+  }
+  return null;
+}
+
 // ========== JWT ==========
 const COOKIE_NAME = 'sm_token';
 const COOKIE_OPTS: express.CookieOptions = {
@@ -149,11 +167,15 @@ app.get('/api/books', requireAuth, async (req, res) => {
 
 app.post('/api/books', requireAuth, async (req, res) => {
   const uid = (req as any).userId;
+  const err = requireFields(req.body, ['title']);
+  if (err) return res.status(400).json({ message: err });
   const { title, colorKey, color, taskColor, category, lap, status, lastUsed, totalPages, deadline } = req.body;
+  if (deadline !== undefined && deadline !== null && !isValidDate(deadline)) return res.status(400).json({ message: 'deadline must be YYYY-MM-DD format' });
+  if (totalPages !== undefined && totalPages !== null && (typeof totalPages !== 'number' || totalPages < 0)) return res.status(400).json({ message: 'totalPages must be a non-negative number' });
   try {
     const r = await getDb().execute({
       sql: `INSERT INTO books (user_id,title,color_key,color,task_color,category,lap,status,last_used,total_pages,completed_pages,deadline) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-      args: [uid, title?.trim(), colorKey || 'blue', color || '', taskColor || '', category || 'その他', Number(lap) || 1, status || 'active', lastUsed || '新規', totalPages ?? null, 0, deadline ?? null]
+      args: [uid, title.trim(), colorKey || 'blue', color || '', taskColor || '', category || 'その他', Number(lap) || 1, status || 'active', lastUsed || '新規', totalPages ?? null, 0, deadline ?? null]
     });
     const b = (await getDb().execute({ sql: 'SELECT * FROM books WHERE id=?', args: [Number(r.lastInsertRowid)] })).rows[0] as any;
     res.status(201).json({ id: b.id, title: b.title, colorKey: b.color_key, color: b.color, taskColor: b.task_color, category: b.category, lap: b.lap, status: b.status, lastUsed: b.last_used, totalPages: b.total_pages, completedPages: b.completed_pages, deadline: b.deadline });
@@ -161,9 +183,14 @@ app.post('/api/books', requireAuth, async (req, res) => {
 });
 
 app.put('/api/books/:id', requireAuth, async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid id' });
   const uid = (req as any).userId; const id = Number(req.params.id);
   const { title, colorKey, color, taskColor, category, lap, status, lastUsed, totalPages, completedPages, deadline } = req.body;
+  if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) return res.status(400).json({ message: 'title must be a non-empty string' });
+  if (deadline !== undefined && deadline !== null && !isValidDate(deadline)) return res.status(400).json({ message: 'deadline must be YYYY-MM-DD format' });
   try {
+    const existing = await getDb().execute({ sql: 'SELECT id FROM books WHERE id=? AND user_id=?', args: [id, uid] });
+    if (existing.rows.length === 0) return res.status(404).json({ message: 'Book not found' });
     await getDb().execute({
       sql: `UPDATE books SET title=COALESCE(?,title),color_key=COALESCE(?,color_key),color=COALESCE(?,color),task_color=COALESCE(?,task_color),category=COALESCE(?,category),lap=COALESCE(?,lap),status=COALESCE(?,status),last_used=COALESCE(?,last_used),total_pages=COALESCE(?,total_pages),completed_pages=COALESCE(?,completed_pages),deadline=COALESCE(?,deadline),updated_at=datetime('now') WHERE id=? AND user_id=?`,
       args: [title ?? null, colorKey ?? null, color ?? null, taskColor ?? null, category ?? null, lap != null ? Number(lap) : null, status ?? null, lastUsed ?? null, totalPages !== undefined ? (totalPages === null ? null : Number(totalPages)) : null, completedPages !== undefined ? Number(completedPages) : null, deadline !== undefined ? (deadline ?? null) : null, id, uid]
@@ -174,13 +201,18 @@ app.put('/api/books/:id', requireAuth, async (req, res) => {
 });
 
 app.delete('/api/books/:id', requireAuth, async (req, res) => {
-  try { await getDb().execute({ sql: 'DELETE FROM books WHERE id=? AND user_id=?', args: [Number(req.params.id), (req as any).userId] }); res.json({ ok: true }); }
-  catch (e) { console.error(e); res.status(500).json({ message: 'Error' }); }
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid id' });
+  try {
+    const r = await getDb().execute({ sql: 'DELETE FROM books WHERE id=? AND user_id=?', args: [Number(req.params.id), (req as any).userId] });
+    if (r.rowsAffected === 0) return res.status(404).json({ message: 'Book not found' });
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error' }); }
 });
 
 // ========== Tasks ==========
 app.get('/api/tasks', requireAuth, async (req, res) => {
   const uid = (req as any).userId; const { from, to } = req.query as any;
+  if ((from && !isValidDate(from)) || (to && !isValidDate(to))) return res.status(400).json({ message: 'from/to must be YYYY-MM-DD format' });
   try {
     const r = (from && to)
       ? await getDb().execute({ sql: 'SELECT * FROM tasks WHERE user_id=? AND date>=? AND date<=? ORDER BY date,start_minutes', args: [uid, from, to] })
@@ -191,11 +223,18 @@ app.get('/api/tasks', requireAuth, async (req, res) => {
 
 app.post('/api/tasks', requireAuth, async (req, res) => {
   const uid = (req as any).userId;
+  const err = requireFields(req.body, ['date', 'title']);
+  if (err) return res.status(400).json({ message: err });
   const { date, startMinutes, duration, title, color, type, bookId, isCompleted } = req.body;
+  if (!isValidDate(date)) return res.status(400).json({ message: 'date must be YYYY-MM-DD format' });
+  const sm = Number(startMinutes) || 0;
+  if (sm < 0 || sm > 1439) return res.status(400).json({ message: 'startMinutes must be 0-1439' });
+  const dur = duration != null ? Number(duration) : 60;
+  if (dur < 1 || dur > 1440) return res.status(400).json({ message: 'duration must be 1-1440' });
   try {
     const r = await getDb().execute({
       sql: `INSERT INTO tasks (user_id,book_id,date,start_minutes,duration,title,color,type,is_completed) VALUES (?,?,?,?,?,?,?,?,?)`,
-      args: [uid, bookId ?? null, date, Number(startMinutes) || 0, Number(duration) || 60, title, color || '', type || 'study', isCompleted ? 1 : 0]
+      args: [uid, bookId ?? null, date, sm, dur, title, color || '', type || 'study', isCompleted ? 1 : 0]
     });
     const t = (await getDb().execute({ sql: 'SELECT * FROM tasks WHERE id=?', args: [Number(r.lastInsertRowid)] })).rows[0] as any;
     res.status(201).json({ id: t.id, date: t.date, startMinutes: t.start_minutes, duration: t.duration, title: t.title, color: t.color, type: t.type, bookId: t.book_id, isCompleted: Boolean(t.is_completed) });
@@ -203,9 +242,15 @@ app.post('/api/tasks', requireAuth, async (req, res) => {
 });
 
 app.put('/api/tasks/:id', requireAuth, async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid id' });
   const uid = (req as any).userId; const id = Number(req.params.id);
   const { date, startMinutes, duration, title, color, type, bookId, isCompleted } = req.body;
+  if (date !== undefined && !isValidDate(date)) return res.status(400).json({ message: 'date must be YYYY-MM-DD format' });
+  if (startMinutes !== undefined && (Number(startMinutes) < 0 || Number(startMinutes) > 1439)) return res.status(400).json({ message: 'startMinutes must be 0-1439' });
+  if (duration !== undefined && (Number(duration) < 1 || Number(duration) > 1440)) return res.status(400).json({ message: 'duration must be 1-1440' });
   try {
+    const existing = await getDb().execute({ sql: 'SELECT id FROM tasks WHERE id=? AND user_id=?', args: [id, uid] });
+    if (existing.rows.length === 0) return res.status(404).json({ message: 'Task not found' });
     await getDb().execute({
       sql: `UPDATE tasks SET date=COALESCE(?,date),start_minutes=COALESCE(?,start_minutes),duration=COALESCE(?,duration),title=COALESCE(?,title),color=COALESCE(?,color),type=COALESCE(?,type),book_id=COALESCE(?,book_id),is_completed=COALESCE(?,is_completed),updated_at=datetime('now') WHERE id=? AND user_id=?`,
       args: [date ?? null, startMinutes != null ? Number(startMinutes) : null, duration != null ? Number(duration) : null, title ?? null, color ?? null, type ?? null, bookId !== undefined ? (bookId ?? null) : null, isCompleted !== undefined ? (isCompleted ? 1 : 0) : null, id, uid]
@@ -216,8 +261,12 @@ app.put('/api/tasks/:id', requireAuth, async (req, res) => {
 });
 
 app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
-  try { await getDb().execute({ sql: 'DELETE FROM tasks WHERE id=? AND user_id=?', args: [Number(req.params.id), (req as any).userId] }); res.json({ ok: true }); }
-  catch (e) { console.error(e); res.status(500).json({ message: 'Error' }); }
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid id' });
+  try {
+    const r = await getDb().execute({ sql: 'DELETE FROM tasks WHERE id=? AND user_id=?', args: [Number(req.params.id), (req as any).userId] });
+    if (r.rowsAffected === 0) return res.status(404).json({ message: 'Task not found' });
+    res.json({ ok: true });
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error' }); }
 });
 
 // ========== Goals ==========
@@ -230,7 +279,11 @@ app.get('/api/goals', requireAuth, async (req, res) => {
 
 app.post('/api/goals', requireAuth, async (req, res) => {
   const uid = (req as any).userId;
+  const err = requireFields(req.body, ['title', 'examDate']);
+  if (err) return res.status(400).json({ message: err });
   const { title, examDate, targetHours, weekdayHoursTarget, weekendHoursTarget, isActive } = req.body;
+  if (!isValidDate(examDate)) return res.status(400).json({ message: 'examDate must be YYYY-MM-DD format' });
+  if (targetHours !== undefined && (typeof targetHours !== 'number' || targetHours <= 0)) return res.status(400).json({ message: 'targetHours must be a positive number' });
   try {
     const r = await getDb().execute({
       sql: `INSERT INTO goals (user_id,title,exam_date,target_hours,weekday_hours_target,weekend_hours_target,is_active) VALUES (?,?,?,?,?,?,?)`,
@@ -241,7 +294,10 @@ app.post('/api/goals', requireAuth, async (req, res) => {
 });
 
 app.put('/api/goals/:id', requireAuth, async (req, res) => {
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid id' });
   const uid = (req as any).userId; const id = req.params.id; const u = req.body;
+  if (u.examDate !== undefined && !isValidDate(u.examDate)) return res.status(400).json({ message: 'examDate must be YYYY-MM-DD format' });
+  if (u.targetHours !== undefined && (typeof u.targetHours !== 'number' || u.targetHours <= 0)) return res.status(400).json({ message: 'targetHours must be a positive number' });
   try {
     const s: string[] = [], v: any[] = [];
     if (u.title !== undefined) { s.push('title=?'); v.push(u.title); }
@@ -258,8 +314,12 @@ app.put('/api/goals/:id', requireAuth, async (req, res) => {
 });
 
 app.delete('/api/goals/:id', requireAuth, async (req, res) => {
-  try { await getDb().execute({ sql: 'DELETE FROM goals WHERE id=? AND user_id=?', args: [req.params.id, (req as any).userId] }); res.json({ success: true }); }
-  catch (e) { console.error(e); res.status(500).json({ message: 'Error' }); }
+  if (!isValidId(req.params.id)) return res.status(400).json({ message: 'Invalid id' });
+  try {
+    const r = await getDb().execute({ sql: 'DELETE FROM goals WHERE id=? AND user_id=?', args: [req.params.id, (req as any).userId] });
+    if (r.rowsAffected === 0) return res.status(404).json({ message: 'Goal not found' });
+    res.json({ success: true });
+  } catch (e) { console.error(e); res.status(500).json({ message: 'Error' }); }
 });
 
 // ========== Error handler ==========
