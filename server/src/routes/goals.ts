@@ -47,7 +47,7 @@ router.put('/:id', async (req, res) => {
     if (updates.weekendHoursTarget !== undefined) { sets.push('weekend_hours_target = ?'); values.push(updates.weekendHoursTarget); }
     if (updates.isActive !== undefined) { sets.push('is_active = ?'); values.push(updates.isActive ? 1 : 0); }
     if (sets.length === 0) { res.json({ success: true }); return; }
-    sets.push('updated_at = datetime("now")');
+    sets.push("updated_at = datetime('now')");
     values.push(id, userId);
     await getDb().execute({ sql: `UPDATE goals SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`, args: values });
     res.json({ success: true });
