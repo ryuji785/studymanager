@@ -21,7 +21,8 @@ const {
 let db: Client;
 function getDb(): Client {
   if (!db) {
-    const url = TURSO_DATABASE_URL || 'file:./server/data/study.db';
+    const url = TURSO_DATABASE_URL || (NODE_ENV === 'production' ? '' : 'file:./server/data/study.db');
+    if (!url) throw new Error('TURSO_DATABASE_URL is required in production. Set it in Vercel Environment Variables.');
     db = createClient({ url, ...(TURSO_AUTH_TOKEN ? { authToken: TURSO_AUTH_TOKEN } : {}) });
   }
   return db;
