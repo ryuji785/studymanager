@@ -251,7 +251,7 @@ app.put('/api/goals/:id', requireAuth, async (req, res) => {
     if (u.weekendHoursTarget !== undefined) { s.push('weekend_hours_target=?'); v.push(u.weekendHoursTarget); }
     if (u.isActive !== undefined) { s.push('is_active=?'); v.push(u.isActive ? 1 : 0); }
     if (s.length === 0) return res.json({ success: true });
-    s.push('updated_at=datetime("now")'); v.push(id, uid);
+    s.push("updated_at=datetime('now')"); v.push(id, uid);
     await getDb().execute({ sql: `UPDATE goals SET ${s.join(',')} WHERE id=? AND user_id=?`, args: v });
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ message: 'Error' }); }
