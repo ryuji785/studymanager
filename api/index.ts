@@ -14,6 +14,7 @@ const {
   TURSO_DATABASE_URL = '',
   TURSO_AUTH_TOKEN = '',
   NODE_ENV = 'development',
+  ENABLE_DEV_LOGIN = 'true',
 } = process.env;
 
 // ========== DB ==========
@@ -91,7 +92,7 @@ function requireAuth(req: express.Request, res: express.Response, next: express.
   if (token) {
     try { (req as any).userId = (jwt.verify(token, JWT_SECRET) as any).id; return next(); } catch { }
   }
-  if (NODE_ENV !== 'production') { (req as any).userId = 'local'; return next(); }
+  if (NODE_ENV !== 'production' || ENABLE_DEV_LOGIN === 'true') { (req as any).userId = 'local'; return next(); }
   res.status(401).json({ message: 'Unauthorized' });
 }
 
@@ -131,7 +132,7 @@ app.get('/auth/me', (req, res) => {
 app.post('/auth/logout', (_req, res) => { res.clearCookie(COOKIE_NAME, COOKIE_OPTS); res.json({ ok: true }); });
 
 app.post('/auth/dev-login', (_req, res) => {
-  if (NODE_ENV === 'production') return res.status(404).json({ message: 'Not found' });
+  if (NODE_ENV === 'production' && ENABLE_DEV_LOGIN !== 'true') return res.status(404).json({ message: 'Not found' });
   const user = { id: 'local', name: '開発ユーザー', email: 'dev@localhost' };
   res.cookie(COOKIE_NAME, signToken(user), COOKIE_OPTS);
   res.json(user);
@@ -258,6 +259,12 @@ app.put('/api/goals/:id', requireAuth, async (req, res) => {
 app.delete('/api/goals/:id', requireAuth, async (req, res) => {
   try { await getDb().execute({ sql: 'DELETE FROM goals WHERE id=? AND user_id=?', args: [req.params.id, (req as any).userId] }); res.json({ success: true }); }
   catch (e) { console.error(e); res.status(500).json({ message: 'Error' }); }
+});
+
+// ========== Error handler ==========
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ message: 'Internal server error', error: String(err?.message || err) });
 });
 
 export default app;
