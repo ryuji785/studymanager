@@ -368,7 +368,7 @@ export default function HomePage() {
                   value={goalDraft.title}
                   onChange={(e) => setGoalDraft({ ...goalDraft, title: e.target.value })}
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
-                  placeholder="例）国家資格キャリアコンサルタント"
+                  placeholder="例）TOEIC 800点、宅建士"
                 />
               </label>
               <label className="block">

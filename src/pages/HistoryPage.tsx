@@ -167,7 +167,7 @@ export default function HistoryPage() {
         <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
           <div>
             <h3 className="text-lg font-bold text-slate-700">学習の足あと（直近3ヶ月）</h3>
-            <p className="text-xs text-slate-500 mt-1">完了した学習タスクをGitHub風に可視化しています</p>
+            <p className="text-xs text-slate-500 mt-1">色の濃さで学習量を表しています</p>
           </div>
           {hasAnyCompletedTask ? (
             <>

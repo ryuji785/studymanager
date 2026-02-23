@@ -8,16 +8,16 @@ import { useBookStore } from '../stores/useBookStore';
 import { BOOK_CATEGORIES, BOOK_COLOR_PALETTE } from '../constants';
 
 const PRESET_EXAMS = [
-  { id: 'cc', title: '国家資格キャリアコンサルタント', targetHours: 150, icon: '🎯' },
-  { id: 'toeic', title: 'TOEIC L&R', targetHours: 200, icon: '🌍' },
+  { id: 'toeic', title: 'TOEIC L&R 800点', targetHours: 300, icon: '🌍' },
   { id: 'boki', title: '日商簿記2級', targetHours: 250, icon: '📊' },
+  { id: 'takken', title: '宅建士（宅地建物取引士）', targetHours: 300, icon: '🏠' },
   { id: 'it', title: 'ITパスポート', targetHours: 100, icon: '💻' },
 ];
 
 const PRESET_BOOKS = [
-  { id: 'b1', title: '公式テキスト・過去問題集', category: '過去問', colorKey: 'blue' },
-  { id: 'b2', title: 'よくわかる！基礎参考書', category: '学科', colorKey: 'amber' },
-  { id: 'b3', title: '一問一答アプリ/単語帳', category: 'その他', colorKey: 'emerald' },
+  { id: 'b1', title: '公式テキスト・問題集', category: 'テキスト', colorKey: 'blue' },
+  { id: 'b2', title: '基礎からわかる 参考書', category: '参考書', colorKey: 'amber' },
+  { id: 'b3', title: '一問一答・暗記カード', category: '問題集', colorKey: 'emerald' },
 ];
 
 // Animations
@@ -379,7 +379,7 @@ export default function SetupWizardPage({ onComplete }: { onComplete: () => void
           <div className="flex justify-center gap-2 mb-12">
             {[0, 1, 2, 3].map(i => (
               <div key={i} className={`h-2 rounded-full transition-all duration-500 ${i === step ? 'w-8 bg-indigo-600' :
-                  i < step ? 'w-2 bg-indigo-300' : 'w-2 bg-slate-200'
+                i < step ? 'w-2 bg-indigo-300' : 'w-2 bg-slate-200'
                 }`} />
             ))}
           </div>

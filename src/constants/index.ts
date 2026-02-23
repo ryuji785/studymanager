@@ -94,51 +94,51 @@ export const BOOK_COLOR_PALETTE: BookColorPalette[] = [
   },
 ];
 
-export const BOOK_CATEGORIES = ['学科', '実技', '論述', '法令', '過去問', 'その他'];
+export const BOOK_CATEGORIES = ['テキスト', '参考書', '問題集', '過去問', '単語帳', 'その他'];
 
 // --- Demo Data ---
 export const DEFAULT_BOOKS: Book[] = [
   {
     id: 1,
-    title: '国家資格キャリアコンサルタント 学科試験テキスト',
+    title: 'TOEIC 公式問題集 Vol.10',
     colorKey: 'amber',
     color: 'bg-amber-100 text-amber-800',
     taskColor: 'bg-amber-50 text-amber-700 border-amber-100',
     status: 'active',
-    category: '学科',
+    category: '問題集',
     lap: 2,
     lastUsed: '2日前',
   },
   {
     id: 2,
-    title: '論述試験 過去問題集 2024',
+    title: '英単語ターゲット 1900',
     colorKey: 'blue',
     color: 'bg-blue-100 text-blue-800',
     taskColor: 'bg-blue-50 text-blue-700 border-blue-100',
     status: 'active',
-    category: '論述',
+    category: '単語帳',
     lap: 1,
     lastUsed: '今日',
   },
   {
     id: 3,
-    title: '労働関係法規 サブノート',
+    title: '合格テキスト 宅建士 基礎編',
     colorKey: 'rose',
     color: 'bg-rose-100 text-rose-800',
     taskColor: 'bg-rose-50 text-rose-700 border-rose-100',
     status: 'active',
-    category: '法令',
+    category: 'テキスト',
     lap: 3,
     lastUsed: '3日前',
   },
   {
     id: 4,
-    title: 'カウンセリング理論まとめ',
+    title: '出る順 簿記2級 過去問',
     colorKey: 'violet',
     color: 'bg-violet-100 text-violet-800',
     taskColor: 'bg-violet-50 text-violet-700 border-violet-100',
     status: 'completed',
-    category: '実技',
+    category: '過去問',
     lap: 5,
     lastUsed: '12日前',
   },
