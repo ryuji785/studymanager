@@ -343,8 +343,26 @@ export default function MaterialsPage() {
         )}
 
         {sortedBooks.length === 0 && (
-          <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-            {isCategoryFiltering ? '選択中のカテゴリに該当する本がありません' : materialsTab === 'desk' ? '机の上に本がありません' : '殿堂入りの本はまだありません'}
+          <div className="mt-8 mb-8">
+            <div className="bg-white border text-center border-slate-100 rounded-3xl p-8 shadow-sm">
+              <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">📚</span>
+              </div>
+              <h3 className="text-base font-bold text-slate-700 mb-2">
+                {isCategoryFiltering ? '該当する本がありません' : materialsTab === 'desk' ? '机の上に本がありません' : '殿堂入りの本はまだありません'}
+              </h3>
+              <p className="text-sm text-slate-500 mb-6 max-w-xs mx-auto">
+                {isCategoryFiltering ? '他のカテゴリを選択してみてください。' : materialsTab === 'desk' ? '新しい教材を追加して、学習の準備を整えましょう。' : '学習を終えた本の一部がここに並びます。'}
+              </p>
+              {materialsTab === 'desk' && !isCategoryFiltering && (
+                <button
+                  onClick={() => setIsAddBookModalOpen(true)}
+                  className="px-6 py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl shadow-md hover:bg-indigo-700 hover:shadow-lg hover:-translate-y-0.5 transition-all inline-flex items-center gap-2"
+                >
+                  <Plus size={18} /> 新しい本を追加する
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

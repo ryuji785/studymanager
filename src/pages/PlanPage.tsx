@@ -187,17 +187,17 @@ export default function PlanPage() {
     setIsAddModalOpen(true);
   };
 
-  const handleAddTask = (book: any, duration = 60) => {
+  const handleAddTask = async (book: any, duration = 60) => {
     if (!editingSlot) return;
-    const newId = addTask({ date: editingSlot.date, startMinutes: editingSlot.startMinutes, duration, title: book.title, color: book.taskColor || book.task || '', type: 'study', bookId: book.id, isCompleted: false });
+    const newId = await addTask({ date: editingSlot.date, startMinutes: editingSlot.startMinutes, duration, title: book.title, color: book.taskColor || book.task || '', type: 'study', bookId: book.id, isCompleted: false });
     setJustAddedTaskId(newId);
     setIsAddModalOpen(false);
     setEditingSlot(null);
   };
 
-  const handleAddFreeTask = () => {
+  const handleAddFreeTask = async () => {
     if (!editingSlot || !freeTaskTitle.trim()) return;
-    const newId = addTask({ date: editingSlot.date, startMinutes: editingSlot.startMinutes, duration: addTaskDuration, title: freeTaskTitle.trim(), color: freeTaskColor, type: 'event', isCompleted: false });
+    const newId = await addTask({ date: editingSlot.date, startMinutes: editingSlot.startMinutes, duration: addTaskDuration, title: freeTaskTitle.trim(), color: freeTaskColor, type: 'event', isCompleted: false });
     setJustAddedTaskId(newId);
     setIsAddModalOpen(false);
     setEditingSlot(null);
@@ -357,6 +357,15 @@ export default function PlanPage() {
               </div>
             ))}
             <div className="absolute left-14 right-0 top-0 bottom-0 pointer-events-none">
+              {daysTasks.length === 0 && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-auto bg-white/50 backdrop-blur-[1px] z-0">
+                  <div className="w-12 h-12 bg-indigo-50 text-indigo-400 rounded-2xl flex items-center justify-center mb-3">
+                    <span className="text-2xl">📌</span>
+                  </div>
+                  <p className="text-sm font-bold text-slate-700 mb-1">予定がありません</p>
+                  <p className="text-xs text-slate-500 mb-3 max-w-[200px]">＋ボタンを押して、学習計画を立てましょう</p>
+                </div>
+              )}
               {daysTasks.map((task) => (
                 <TaskItem key={task.id} task={task} layoutStyle={layoutMap[task.id]} planStartMinutes={planStartMinutes} planEndMinutes={planEndMinutes} firstMinute={firstMinute} rowHeight={rowHeight} slotMinutes={PLAN_SLOT_MINUTES} justAddedTaskId={justAddedTaskId} onTaskClick={openEditTaskModal} onTaskDelete={removeTask} onUpdateTask={updateTaskStartMinutes} onToggleComplete={handleToggleComplete} />
               ))}

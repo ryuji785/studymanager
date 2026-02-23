@@ -283,13 +283,18 @@ export default function HomePage() {
                 </button>
               </div>
             </>
-          ) : (
+          ) : timelineTasks.length > 0 ? (
             <div className="text-center py-8">
-              <p className="text-sm font-semibold text-emerald-600">🎉 本日の予定は完了です！</p>
+              <p className="text-sm font-semibold text-emerald-600">🎉 本日の予定はすべて完了です！</p>
               <p className="text-slate-500 text-sm mt-2">この調子で明日も進めましょう。</p>
               <button onClick={() => navigate('/plan')} className="mt-4 px-5 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-colors inline-flex items-center gap-2">
-                <Calendar size={16} /> 計画表を見る
+                <Calendar size={16} /> 明日の計画を立てる
               </button>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-sm font-semibold text-slate-700">まだ今日の予定がありません</p>
+              <p className="text-slate-500 text-sm mt-2">15分だけでも学習を進めてみませんか？</p>
             </div>
           )}
         </div>
@@ -323,7 +328,19 @@ export default function HomePage() {
               })}
             </div>
           ) : (
-            <p className="text-sm text-slate-400">表示できる予定はありません。</p>
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 text-center shadow-sm">
+              <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">☀️</span>
+              </div>
+              <p className="text-sm font-bold text-slate-700 mb-1">今日の予定はありません</p>
+              <p className="text-xs text-slate-500 mb-4">計画表からタスクを追加して、学習を始めましょう</p>
+              <button
+                onClick={() => navigate('/plan')}
+                className="px-5 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 text-sm font-bold rounded-xl hover:bg-indigo-100 transition-colors inline-flex items-center gap-2"
+              >
+                <Plus size={16} /> 予定を追加する
+              </button>
+            </div>
           )}
         </section>
       </div>
