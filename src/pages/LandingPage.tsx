@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Target, CalendarDays, BookOpen, LineChart, ArrowRight, Zap, Trophy, Sparkles } from 'lucide-react';
+import { CalendarDays, BookOpen, LineChart, ArrowRight, Zap, Trophy, Sparkles } from 'lucide-react';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -18,9 +18,11 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200">
-              <Target size={18} className="text-white" />
-            </div>
+            <img
+              src="/studymanager-icon.svg"
+              alt="StudyManager icon"
+              className="w-8 h-8 rounded-lg shadow-lg shadow-indigo-200"
+            />
             <span className="font-bold text-xl tracking-tight text-slate-800">StudyManager</span>
           </div>
           <div className="flex items-center gap-4">
@@ -253,7 +255,11 @@ export default function LandingPage() {
       <footer className="bg-slate-50 py-12 px-6 border-t border-slate-200 text-center text-sm text-slate-500">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 font-bold text-slate-700">
-            <Target size={16} className="text-indigo-600" />
+            <img
+              src="/studymanager-icon.svg"
+              alt="StudyManager icon"
+              className="w-4 h-4 rounded"
+            />
             StudyManager
           </div>
           <p>© 2026 StudyManager. All rights reserved.</p>
