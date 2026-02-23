@@ -143,8 +143,8 @@ export default function MaterialsPage() {
         {/* Tabs */}
         <div className="mb-5 rounded-2xl border border-slate-100 bg-white p-2">
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setMaterialsTab('desk')} className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${materialsTab === 'desk' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>机の上</button>
-            <button onClick={() => setMaterialsTab('hall')} className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${materialsTab === 'hall' ? 'bg-amber-500 text-white shadow-sm' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>殿堂入り</button>
+            <button onClick={() => setMaterialsTab('desk')} className={`flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${materialsTab === 'desk' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>机の上</button>
+            <button onClick={() => setMaterialsTab('hall')} className={`flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${materialsTab === 'hall' ? 'bg-amber-500 text-white shadow-sm' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}`}>殿堂入り</button>
           </div>
         </div>
 
@@ -434,8 +434,8 @@ export default function MaterialsPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-1">
-                <button onClick={() => setIsAddBookModalOpen(false)} className="py-3 rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm">キャンセル</button>
-                <button onClick={createBook} className="py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-50" disabled={!newBookTitle.trim()}>追加する</button>
+                <button onClick={() => setIsAddBookModalOpen(false)} className="py-3 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm">キャンセル</button>
+                <button onClick={createBook} className="py-3 flex items-center justify-center rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-50" disabled={!newBookTitle.trim()}>追加する</button>
               </div>
             </div>
           </div>
@@ -553,7 +553,7 @@ export default function MaterialsPage() {
                 <button onClick={() => { deleteBook(bookDraft.id); setIsBookDetailModalOpen(false); setBookDraft(null); }} className="sm:col-span-1 py-3 rounded-xl border border-rose-200 text-rose-600 bg-rose-50 font-bold text-sm inline-flex items-center justify-center gap-1.5">
                   <Trash2 size={14} /> 削除
                 </button>
-                <button onClick={() => closeBookDetailModal(true)} className="sm:col-span-2 py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm">保存</button>
+                <button onClick={() => closeBookDetailModal(true)} className="sm:col-span-2 py-3 flex items-center justify-center rounded-xl bg-indigo-600 text-white font-bold text-sm">保存</button>
               </div>
             </div>
           </div>

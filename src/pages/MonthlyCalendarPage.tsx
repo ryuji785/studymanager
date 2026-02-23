@@ -117,8 +117,8 @@ export default function MonthlyCalendarPage() {
                 `}
               >
                 <span className={`
-                  text-xs font-bold leading-none mb-1
-                  ${isToday ? 'bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-slate-700'}
+                  w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold leading-none mb-1
+                  ${isToday ? 'bg-indigo-600 text-white' : 'text-slate-700'}
                 `}>
                   {cell.date.getDate()}
                 </span>

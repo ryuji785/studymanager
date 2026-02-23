@@ -505,8 +505,8 @@ export default function PlanPage() {
               <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editIsCompleted} onChange={(e) => setEditIsCompleted(e.target.checked)} className="w-4 h-4 rounded" /><span className="text-sm font-semibold text-slate-700">完了</span></label>
             </div>
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <button onClick={() => { removeTask(editingTask.id); setIsEditModalOpen(false); setEditingTask(null); }} className="py-3 rounded-xl border border-rose-200 text-rose-600 bg-rose-50 font-bold text-sm inline-flex items-center justify-center gap-1.5"><Trash2 size={14} /> 削除</button>
-              <button onClick={saveTaskEdits} className="py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm">保存</button>
+              <button onClick={() => { removeTask(editingTask.id); setIsEditModalOpen(false); setEditingTask(null); }} className="py-3 flex items-center justify-center rounded-xl border border-rose-200 text-rose-600 bg-rose-50 font-bold text-sm gap-1.5"><Trash2 size={14} /> 削除</button>
+              <button onClick={saveTaskEdits} className="py-3 flex items-center justify-center rounded-xl bg-indigo-600 text-white font-bold text-sm">保存</button>
             </div>
           </div>
         </div>
@@ -520,8 +520,8 @@ export default function PlanPage() {
             <h3 className="text-lg font-bold text-slate-800 mb-4">期間を指定</h3>
             <input type="date" value={periodDateInput} onChange={(e) => setPeriodDateInput(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             <div className="mt-4 flex gap-2">
-              <button onClick={() => setIsPeriodPickerOpen(false)} className="flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm">キャンセル</button>
-              <button onClick={() => { const d = new Date(periodDateInput); if (!isNaN(d.getTime())) { setWeekStartDate(getWeekStartMonday(d)); setSelectedDate(periodDateInput); } setIsPeriodPickerOpen(false); }} className="flex-1 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm">移動</button>
+              <button onClick={() => setIsPeriodPickerOpen(false)} className="flex items-center justify-center flex-1 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm">キャンセル</button>
+              <button onClick={() => { const d = new Date(periodDateInput); if (!isNaN(d.getTime())) { setWeekStartDate(getWeekStartMonday(d)); setSelectedDate(periodDateInput); } setIsPeriodPickerOpen(false); }} className="flex items-center justify-center flex-1 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm">移動</button>
             </div>
           </div>
         </div>
@@ -580,10 +580,10 @@ export default function PlanPage() {
                     <button onClick={() => setInputVal(v => Math.min((book?.totalPages || 9999), v + 1))} className="h-9 w-9 rounded-full border border-indigo-200 bg-indigo-50 font-bold text-lg text-indigo-600">＋</button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <button onClick={() => setProgressLinkModal(null)} className="py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm">スキップ</button>
+                    <button onClick={() => setProgressLinkModal(null)} className="py-2.5 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 font-bold text-sm">スキップ</button>
                     <button
                       onClick={() => { updateBookProgress(progressLinkModal.bookId, inputVal); setProgressLinkModal(null); }}
-                      className="py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-sm"
+                      className="py-2.5 flex items-center justify-center rounded-xl bg-indigo-600 text-white font-bold text-sm"
                     >
                       更新する
                     </button>

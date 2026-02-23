@@ -171,10 +171,11 @@ export default function HistoryPage() {
           </div>
           {hasAnyCompletedTask ? (
             <>
-              <div className="flex gap-3">
-                <div className="pt-1 text-[11px] text-slate-500 leading-[18px]">
-                  <p className="h-[18px]">月</p><p className="h-[18px]">&nbsp;</p><p className="h-[18px]">水</p>
-                  <p className="h-[18px]">&nbsp;</p><p className="h-[18px]">金</p>
+              <div className="flex gap-2">
+                <div className="grid gap-1 text-[10px] text-slate-500 pr-1 text-right" style={{ gridTemplateRows: 'repeat(7, 16px)' }}>
+                  <div style={{ gridRow: 1 }} className="flex items-center justify-end">月</div>
+                  <div style={{ gridRow: 3 }} className="flex items-center justify-end">水</div>
+                  <div style={{ gridRow: 5 }} className="flex items-center justify-end">金</div>
                 </div>
                 <div ref={heatmapScrollRef} className="overflow-x-auto pb-2">
                   <div className="grid min-w-max gap-1" style={{ gridTemplateRows: 'repeat(7, 1fr)', gridAutoFlow: 'column', gridAutoColumns: '16px' }}>

@@ -256,7 +256,7 @@ export default function HomePage() {
         <div className="bg-white rounded-3xl p-6 shadow-lg shadow-indigo-100 border border-indigo-50 mt-4">
           {nextActionTask ? (
             <>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700">次のタスク</span>
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700">次のタスク</span>
               <h3 className="text-xl font-bold text-slate-800 mb-2 mt-3">{nextActionTask.title}</h3>
               <div className="space-y-2 text-sm text-slate-500 mb-6">
                 <p className="flex items-center">
@@ -418,10 +418,10 @@ export default function HomePage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 pt-4">
-                <button onClick={() => setIsGoalModalOpen(false)} className="py-3 rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm">キャンセル</button>
+                <button onClick={() => setIsGoalModalOpen(false)} className="py-3 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm">キャンセル</button>
                 <button
                   onClick={saveGoal}
-                  className="py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-50"
+                  className="py-3 flex items-center justify-center rounded-xl bg-indigo-600 text-white font-bold text-sm disabled:opacity-50"
                   disabled={!goalDraft.title.trim() || !goalDraft.examDate}
                 >
                   保存する
