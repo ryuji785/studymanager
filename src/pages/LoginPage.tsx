@@ -19,9 +19,11 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
         {/* Logo / Icon */}
-        <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-amber-500/20 mb-8">
-          <Target size={40} className="text-white" />
-        </div>
+        <img
+          src="/studymanager-icon.png"
+          alt="StudyManager icon"
+          className="w-24 h-24 rounded-[2rem] shadow-2xl shadow-indigo-500/30 mb-8 border border-white/10"
+        />
 
         {/* Title */}
         <h1 className="text-3xl font-extrabold text-white tracking-tight mb-2">StudyManager</h1>
