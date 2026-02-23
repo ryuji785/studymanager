@@ -108,9 +108,9 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-amber-400"></div>
                 <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
               </div>
-              <div className="flex-1 bg-slate-50 p-6 flex gap-6">
+              <div className="flex-1 bg-slate-50 p-6 flex flex-col md:flex-row gap-6">
                 {/* Mock Sidebar */}
-                <div className="w-1/4 rounded-xl bg-white shadow-sm border border-slate-100 p-4 flex flex-col gap-3">
+                <div className="w-full md:w-1/4 rounded-xl bg-white shadow-sm border border-slate-100 p-4 flex flex-col gap-3">
                   <div className="h-4 bg-slate-200 rounded w-1/2 mb-4"></div>
                   <div className="h-8 bg-indigo-50 rounded-lg w-full"></div>
                   <div className="h-8 bg-slate-100 rounded-lg w-full"></div>
@@ -125,7 +125,7 @@ export default function LandingPage() {
                       <div className="h-6 bg-emerald-100 rounded w-1/5"></div>
                     </div>
                   </div>
-                  <div className="flex gap-6 flex-1">
+                  <div className="flex flex-col md:flex-row gap-6 flex-1">
                     <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-100 p-4">
                       <div className="h-4 bg-slate-200 rounded w-1/3 mb-4"></div>
                       <div className="space-y-3">
@@ -134,8 +134,8 @@ export default function LandingPage() {
                         <div className="h-10 bg-slate-50 rounded-lg"></div>
                       </div>
                     </div>
-                    <div className="w-1/3 bg-white rounded-xl shadow-sm border border-slate-100 p-4">
-                      <div className="h-32 w-32 rounded-full border-4 border-indigo-100 border-t-indigo-600 mx-auto mt-4"></div>
+                    <div className="w-full md:w-1/3 bg-white rounded-xl shadow-sm border border-slate-100 p-4 flex items-center justify-center">
+                      <div className="h-24 w-24 md:h-32 md:w-32 rounded-full border-4 border-indigo-100 border-t-indigo-600 my-auto"></div>
                     </div>
                   </div>
                 </div>
@@ -211,19 +211,19 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Social Proof (Optional) / Small Banner */}
+      {/* Value Proposition Banner */}
       <section className="py-12 px-6 bg-indigo-600 text-white">
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
-          <div className="flex items-center gap-4 justify-center md:justify-start">
-            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-              <Trophy size={24} className="text-amber-300" />
+          <div className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm shrink-0">
+              <Sparkles size={24} className="text-amber-300" />
             </div>
             <div>
-              <div className="text-2xl font-bold">10,000+</div>
-              <div className="text-indigo-200 text-sm">記録された学習タスク</div>
+              <div className="text-xl md:text-2xl font-bold">シンプルで直感的なUI</div>
+              <div className="text-indigo-200 text-sm mt-1">迷わず学習に取り組めるデザイン</div>
             </div>
           </div>
-          <p className="text-lg font-medium">日々多くの学習者が、StudyManagerで目標に向かって進んでいます。</p>
+          <p className="text-base md:text-lg font-medium max-w-md">使いやすさにこだわったStudyManagerで、あなたの学習をさらに加速させましょう。</p>
         </div>
       </section>
 
