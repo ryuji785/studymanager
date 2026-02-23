@@ -12,6 +12,7 @@ import HistoryPage from '../pages/HistoryPage';
 import MonthlyCalendarPage from '../pages/MonthlyCalendarPage';
 import SetupWizardPage from '../pages/SetupWizardPage';
 import LoginPage from '../pages/LoginPage';
+import LandingPage from '../pages/LandingPage';
 import '../styles/app.css';
 
 // --- TabBar ---
@@ -169,7 +170,21 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {user ? <AuthenticatedLayout /> : <LoginPage />}
+      <Routes>
+        {!user ? (
+          <>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
+        ) : (
+          <>
+            <Route path="/" element={<Navigate to="/plan" replace />} />
+            <Route path="/login" element={<Navigate to="/plan" replace />} />
+            <Route path="/*" element={<AuthenticatedLayout />} />
+          </>
+        )}
+      </Routes>
     </BrowserRouter>
   );
 }
