@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Calendar, ChevronRight, Plus, Clock, Check, Trash2, X, Book } from 'lucide-react';
-import { motion, useDragControls } from 'motion/react';
+import { motion } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useTaskStore } from '../stores/useTaskStore';
@@ -35,7 +35,7 @@ function TaskItem({
   onUpdateTask: (id: number, newStart: number) => void;
   onToggleComplete: (id: number) => void;
 }) {
-  const controls = useDragControls();
+
   const startMinutes = getTaskStartMinutes(task);
   const duration = Number(task.duration || 0);
   const endMinutes = startMinutes + duration;
@@ -47,61 +47,7 @@ function TaskItem({
   const height = Math.max(28, ((visibleEnd - visibleStart) / slotMinutes) * rowHeight - 8);
   const isCompleted = Boolean(task.isCompleted);
 
-  const [isDraggable, setIsDraggable] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasDragged = useRef(false);
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
-  const pointerDownEvent = useRef<React.PointerEvent | null>(null);
-
-  const startDrag = () => {
-    if (isDraggable) return;
-    wasDragged.current = true;
-    setIsDraggable(true);
-    // Defer controls.start to next frame so React commits drag={true} first
-    requestAnimationFrame(() => {
-      if (pointerDownEvent.current) {
-        try { controls.start(pointerDownEvent.current as any); } catch { /* */ }
-      }
-    });
-  };
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    wasDragged.current = false;
-    pointerStart.current = { x: e.clientX, y: e.clientY };
-    pointerDownEvent.current = e;
-    if (e.pointerType === 'touch') {
-      longPressTimer.current = setTimeout(() => {
-        startDrag();
-        if (navigator.vibrate) navigator.vibrate(50);
-      }, 500);
-    }
-    // Mouse: wait for vertical movement threshold (handled in onPointerMove)
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!pointerStart.current || isDraggable) return;
-    if (e.pointerType === 'touch') {
-      // Cancel long-press if finger moves too much
-      const d = Math.abs(e.clientY - pointerStart.current.y) + Math.abs(e.clientX - pointerStart.current.x);
-      if (d > 10 && longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-      return;
-    }
-    // Mouse: start drag after vertical movement threshold
-    const dy = Math.abs(e.clientY - pointerStart.current.y);
-    if (dy > 4) {
-      startDrag();
-    }
-  };
-
-  const handlePointerUp = () => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
-    pointerStart.current = null;
-    pointerDownEvent.current = null;
-    if (!wasDragged.current) setIsDraggable(false);
-  };
 
   const handleCardClick = () => {
     if (!wasDragged.current) {
@@ -112,14 +58,21 @@ function TaskItem({
   return (
     <motion.div
       className="absolute pl-1 pr-1 pointer-events-auto"
-      style={{ top, height, left: layoutStyle?.left || '0%', width: layoutStyle?.width || '100%', zIndex: isDraggable ? 50 : (layoutStyle?.zIndex || 10), touchAction: 'none' }}
-      drag={isDraggable ? 'y' : false} dragControls={controls} dragMomentum={false} dragElastic={0}
-      onDragStart={() => { wasDragged.current = true; }}
-      onDragEnd={(_, info) => { setIsDraggable(false); const dm = Math.round((info.offset.y / rowHeight) * slotMinutes / 5) * 5; if (dm !== 0) onUpdateTask(task.id, Math.max(0, startMinutes + dm)); }}
-      onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} initial={false}
+      style={{ top, height, left: layoutStyle?.left || '0%', width: layoutStyle?.width || '100%', zIndex: 10, touchAction: 'none' }}
+      drag="y" dragMomentum={false} dragElastic={0} dragSnapToOrigin
+      whileDrag={{ zIndex: 50, scale: 1.03 }}
+      onDragStart={() => { wasDragged.current = true; if (navigator.vibrate) navigator.vibrate(30); }}
+      onDragEnd={(_, info) => {
+        const dm = Math.round((info.offset.y / rowHeight) * slotMinutes / 5) * 5;
+        if (dm !== 0) onUpdateTask(task.id, Math.max(0, startMinutes + dm));
+        // Reset wasDragged after a short delay so onClick doesn't fire
+        setTimeout(() => { wasDragged.current = false; }, 50);
+      }}
+      onPointerDown={() => { wasDragged.current = false; }}
+      initial={false}
     >
       <div onClick={handleCardClick}
-        className={`relative group h-full ${task.color} rounded-xl p-3 border shadow-sm transition-all ${isCompleted ? 'opacity-70 saturate-75' : ''} ${justAddedTaskId === task.id ? 'animate-task-pop' : ''} ${isDraggable ? 'scale-105 shadow-xl ring-2 ring-indigo-400 cursor-grabbing' : 'cursor-pointer hover:scale-[1.01]'}`}>
+        className={`relative group h-full ${task.color} rounded-xl p-3 border shadow-sm transition-all ${isCompleted ? 'opacity-70 saturate-75' : ''} ${justAddedTaskId === task.id ? 'animate-task-pop' : ''} cursor-pointer hover:scale-[1.01]`}>
         <div className="flex items-start gap-2 h-full overflow-hidden">
           {/* Always-visible completion toggle */}
           <button
