@@ -8,6 +8,7 @@ import { toDateKey, toTimeString, addDays } from '../utils';
 
 export default function MonthlyCalendarPage() {
   const tasks = useTaskStore((s) => s.tasks);
+  const toggleTaskCompletion = useTaskStore((s) => s.toggleTaskCompletion);
   const books = useBookStore((s) => s.books);
   const navigate = useNavigate();
 
@@ -176,7 +177,14 @@ export default function MonthlyCalendarPage() {
                       key={task.id}
                       className={`flex items-center gap-3 px-4 py-3 ${task.isCompleted ? 'opacity-60' : ''}`}
                     >
-                      <div className={`w-1.5 h-8 rounded-full shrink-0 ${task.isCompleted ? 'bg-emerald-400' : 'bg-indigo-400'}`} />
+                      {/* Completion toggle */}
+                      <button
+                        onClick={() => toggleTaskCompletion(task.id)}
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${task.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-emerald-400'}`}
+                        title={task.isCompleted ? '完了を取消' : '完了にする'}
+                      >
+                        {task.isCompleted && <Check size={12} strokeWidth={3} />}
+                      </button>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-semibold text-slate-800 truncate ${task.isCompleted ? 'line-through' : ''}`}>
                           {task.title}
@@ -187,9 +195,6 @@ export default function MonthlyCalendarPage() {
                           <span className="ml-1 text-slate-300">({task.duration}分)</span>
                         </p>
                       </div>
-                      {task.isCompleted && (
-                        <Check size={16} className="text-emerald-500 shrink-0" />
-                      )}
                     </div>
                   ))}
               </div>

@@ -310,10 +310,20 @@ export default function HomePage() {
                   <div key={task.id} className="relative">
                     <div className={`absolute -left-[18px] top-1.5 h-3 w-3 rounded-full ${isCompleted ? 'bg-slate-300' : 'bg-indigo-500'}`}></div>
                     <div
-                      onClick={() => navigate(`/plan?date=${task.date}`)}
-                      className="bg-white rounded-2xl border border-slate-100 px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                      className="bg-white rounded-2xl border border-slate-100 px-4 py-3 flex items-center gap-3"
                     >
-                      <div className="min-w-0 flex-1">
+                      {/* Completion toggle */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleTaskCompletion(task.id); }}
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-emerald-400'}`}
+                        title={isCompleted ? '完了を取消' : '完了にする'}
+                      >
+                        {isCompleted && <Check size={12} strokeWidth={3} />}
+                      </button>
+                      <div
+                        onClick={() => navigate(`/plan?date=${task.date}`)}
+                        className="min-w-0 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                      >
                         <p className={`text-xs font-semibold ${isCompleted ? 'text-slate-400' : 'text-slate-700'}`}>
                           {toTimeString(getTaskStartMinutes(task))} - {toTimeString(getTaskStartMinutes(task) + Number(task.duration ?? 0))}
                         </p>
@@ -321,7 +331,7 @@ export default function HomePage() {
                           {task.title}
                         </p>
                       </div>
-                      <ChevronRight size={16} className="text-slate-300 shrink-0 ml-2" />
+                      <ChevronRight size={16} className="text-slate-300 shrink-0" onClick={() => navigate(`/plan?date=${task.date}`)} />
                     </div>
                   </div>
                 );

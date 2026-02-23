@@ -76,7 +76,15 @@ function TaskItem({
     >
       <div onClick={() => { if (!wasDragged.current) onTaskClick(task); }}
         className={`relative group h-full ${task.color} rounded-xl p-3 border shadow-sm transition-all ${isCompleted ? 'opacity-70 saturate-75' : ''} ${justAddedTaskId === task.id ? 'animate-task-pop' : ''} ${isDraggable ? 'scale-105 shadow-xl ring-2 ring-indigo-400 cursor-grabbing' : 'cursor-pointer hover:scale-[1.01]'}`}>
-        <div className="flex justify-between items-start gap-2 h-full overflow-hidden">
+        <div className="flex items-start gap-2 h-full overflow-hidden">
+          {/* Always-visible completion toggle */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleComplete(task.id); }}
+            className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-current/40 hover:border-emerald-400 hover:bg-emerald-50'}`}
+            title={isCompleted ? '完了を取消' : '完了にする'}
+          >
+            {isCompleted && <Check size={10} strokeWidth={3} />}
+          </button>
           <div className="flex flex-col h-full min-w-0 flex-1">
             <span className="text-xs font-bold opacity-80 truncate pr-1">{task.title}</span>
             <div className="mt-1 flex items-center gap-2 flex-wrap content-start">
@@ -86,7 +94,6 @@ function TaskItem({
             </div>
           </div>
           <button onClick={(e) => { e.stopPropagation(); onTaskDelete(task.id); }} className="p-1 hover:bg-black/10 rounded text-current opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="削除"><Trash2 size={14} /></button>
-          {!isCompleted && <button onClick={(e) => { e.stopPropagation(); onToggleComplete(task.id); }} className="p-1 hover:bg-emerald-400/20 rounded text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="完了"><Check size={14} /></button>}
         </div>
       </div>
     </motion.div>
