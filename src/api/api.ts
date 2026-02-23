@@ -2,9 +2,47 @@ import type { Book, Task, Goal } from '../constants';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+// ---------- Dev Mode (localhost without backend) ----------
+
+const IS_LOCALHOST = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const DEV_SESSION_KEY = 'sm_dev_session';
+const LS_PREFIX = 'sm_dev_';
+
+export function isDevMode(): boolean {
+  return IS_LOCALHOST && localStorage.getItem(DEV_SESSION_KEY) === '1';
+}
+
+export function setDevSession(active: boolean): void {
+  if (active) localStorage.setItem(DEV_SESSION_KEY, '1');
+  else localStorage.removeItem(DEV_SESSION_KEY);
+}
+
+// --- localStorage helpers ---
+function lsGet<T>(key: string, fallback: T): T {
+  try { const v = localStorage.getItem(LS_PREFIX + key); return v ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function lsSet(key: string, value: unknown): void {
+  localStorage.setItem(LS_PREFIX + key, JSON.stringify(value));
+}
+let _nextId = Date.now();
+function nextId(): number { return _nextId++; }
+
 // ---------- 共通 ----------
 
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // If in dev mode, use localStorage mock
+  if (isDevMode()) {
+    return devMockRequest<T>(path, init);
+  }
+
   const res = await fetch(`${BASE_URL}${path}`, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
@@ -21,11 +59,88 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-    this.name = 'ApiError';
+// ---------- Dev Mock Router ----------
+
+function devMockRequest<T>(path: string, init?: RequestInit): T {
+  const method = (init?.method || 'GET').toUpperCase();
+  const body = init?.body ? JSON.parse(init.body as string) : undefined;
+
+  // Auth
+  if (path === '/auth/me') return { id: 'dev-user', name: 'Dev User', email: 'dev@localhost' } as T;
+  if (path === '/auth/logout') { setDevSession(false); return { ok: true } as T; }
+
+  // Goals
+  if (path === '/api/goals' && method === 'GET') return lsGet<Goal[]>('goals', []) as T;
+  if (path === '/api/goals' && method === 'POST') {
+    const goals = lsGet<Goal[]>('goals', []);
+    const newGoal = { ...body, id: nextId() };
+    goals.push(newGoal);
+    lsSet('goals', goals);
+    return newGoal as T;
   }
+  if (path.startsWith('/api/goals/') && method === 'PUT') {
+    const id = Number(path.split('/').pop());
+    const goals = lsGet<Goal[]>('goals', []).map(g => g.id === id ? { ...g, ...body } : g);
+    lsSet('goals', goals);
+    return { success: true } as T;
+  }
+  if (path.startsWith('/api/goals/') && method === 'DELETE') {
+    const id = Number(path.split('/').pop());
+    lsSet('goals', lsGet<Goal[]>('goals', []).filter(g => g.id !== id));
+    return { success: true } as T;
+  }
+
+  // Books
+  if (path === '/api/books' && method === 'GET') return lsGet<Book[]>('books', []) as T;
+  if (path === '/api/books' && method === 'POST') {
+    const books = lsGet<Book[]>('books', []);
+    const newBook = { ...body, id: nextId() };
+    books.push(newBook);
+    lsSet('books', books);
+    return newBook as T;
+  }
+  if (path.startsWith('/api/books/') && method === 'PUT') {
+    const id = Number(path.split('/').pop());
+    let updated: Book | undefined;
+    const books = lsGet<Book[]>('books', []).map(b => {
+      if (b.id === id) { updated = { ...b, ...body }; return updated; }
+      return b;
+    });
+    lsSet('books', books);
+    return (updated || {}) as T;
+  }
+  if (path.startsWith('/api/books/') && method === 'DELETE') {
+    const id = Number(path.split('/').pop());
+    lsSet('books', lsGet<Book[]>('books', []).filter(b => b.id !== id));
+    return { ok: true } as T;
+  }
+
+  // Tasks
+  if (path.startsWith('/api/tasks') && method === 'GET') return lsGet<Task[]>('tasks', []) as T;
+  if (path === '/api/tasks' && method === 'POST') {
+    const tasks = lsGet<Task[]>('tasks', []);
+    const newTask = { ...body, id: nextId() };
+    tasks.push(newTask);
+    lsSet('tasks', tasks);
+    return newTask as T;
+  }
+  if (path.startsWith('/api/tasks/') && method === 'PUT') {
+    const id = Number(path.split('/').pop());
+    let updated: Task | undefined;
+    const tasks = lsGet<Task[]>('tasks', []).map(t => {
+      if (t.id === id) { updated = { ...t, ...body }; return updated; }
+      return t;
+    });
+    lsSet('tasks', tasks);
+    return (updated || {}) as T;
+  }
+  if (path.startsWith('/api/tasks/') && method === 'DELETE') {
+    const id = Number(path.split('/').pop());
+    lsSet('tasks', lsGet<Task[]>('tasks', []).filter(t => t.id !== id));
+    return { ok: true } as T;
+  }
+
+  throw new ApiError(404, `Dev mock: unknown route ${method} ${path}`);
 }
 
 // ---------- Auth ----------
@@ -85,3 +200,4 @@ export const goalsApi = {
   update: (id: number, data: GoalUpdate) => request<{ success: boolean }>(`/api/goals/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: number) => request<{ success: boolean }>(`/api/goals/${id}`, { method: 'DELETE' }),
 };
+

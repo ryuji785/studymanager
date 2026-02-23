@@ -50,31 +50,54 @@ function TaskItem({
   const [isDraggable, setIsDraggable] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasDragged = useRef(false);
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     wasDragged.current = false;
+    pointerStart.current = { x: e.clientX, y: e.clientY };
     if (e.pointerType === 'touch') {
       longPressTimer.current = setTimeout(() => {
         setIsDraggable(true);
+        wasDragged.current = true;
         try { controls.start(e as any); if (navigator.vibrate) navigator.vibrate(50); } catch { /* */ }
       }, 500);
-    } else { setIsDraggable(true); controls.start(e as any); }
+    }
+    // Mouse: do NOT immediately start drag — wait for movement (handled in onPointerMove)
   };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!pointerStart.current) return;
+    if (e.pointerType === 'touch') return; // touch uses long-press, not movement
+    const dy = Math.abs(e.clientY - pointerStart.current.y);
+    if (dy > 4 && !isDraggable) {
+      setIsDraggable(true);
+      wasDragged.current = true;
+      try { controls.start(e as any); } catch { /* */ }
+    }
+  };
+
   const handlePointerUp = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    pointerStart.current = null;
     if (!wasDragged.current) setIsDraggable(false);
+  };
+
+  const handleCardClick = () => {
+    if (!wasDragged.current) {
+      onTaskClick(task);
+    }
   };
 
   return (
     <motion.div
-      className="absolute pl-1 pr-1"
+      className="absolute pl-1 pr-1 pointer-events-auto"
       style={{ top, height, left: layoutStyle?.left || '0%', width: layoutStyle?.width || '100%', zIndex: isDraggable ? 50 : (layoutStyle?.zIndex || 10), touchAction: 'none' }}
       drag={isDraggable ? 'y' : false} dragControls={controls} dragMomentum={false} dragElastic={0}
       onDragStart={() => { wasDragged.current = true; }}
       onDragEnd={(_, info) => { setIsDraggable(false); const dm = Math.round((info.offset.y / rowHeight) * slotMinutes / 5) * 5; if (dm !== 0) onUpdateTask(task.id, Math.max(0, startMinutes + dm)); }}
-      onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} initial={false}
+      onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} initial={false}
     >
-      <div onClick={() => { if (!wasDragged.current) onTaskClick(task); }}
+      <div onClick={handleCardClick}
         className={`relative group h-full ${task.color} rounded-xl p-3 border shadow-sm transition-all ${isCompleted ? 'opacity-70 saturate-75' : ''} ${justAddedTaskId === task.id ? 'animate-task-pop' : ''} ${isDraggable ? 'scale-105 shadow-xl ring-2 ring-indigo-400 cursor-grabbing' : 'cursor-pointer hover:scale-[1.01]'}`}>
         <div className="flex items-start gap-2 h-full overflow-hidden">
           {/* Always-visible completion toggle */}
@@ -93,7 +116,8 @@ function TaskItem({
               {isCompleted && <span className="text-[10px] font-medium bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded inline-flex items-center gap-1 shrink-0"><Check size={10} /> 完了</span>}
             </div>
           </div>
-          <button onClick={(e) => { e.stopPropagation(); onTaskDelete(task.id); }} className="p-1 hover:bg-black/10 rounded text-current opacity-0 group-hover:opacity-100 transition-opacity shrink-0" title="削除"><Trash2 size={14} /></button>
+          {/* Always-visible delete button */}
+          <button onClick={(e) => { e.stopPropagation(); onTaskDelete(task.id); }} className="p-1 hover:bg-black/10 rounded text-current/50 hover:text-current transition-colors shrink-0" title="削除"><Trash2 size={14} /></button>
         </div>
       </div>
     </motion.div>
@@ -365,7 +389,7 @@ export default function PlanPage() {
             ))}
             <div className="absolute left-14 right-0 top-0 bottom-0 pointer-events-none">
               {daysTasks.length === 0 && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-auto bg-white/50 backdrop-blur-[1px] z-0">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none bg-white/50 backdrop-blur-[1px] z-0">
                   <div className="w-12 h-12 bg-indigo-50 text-indigo-400 rounded-2xl flex items-center justify-center mb-3">
                     <span className="text-2xl">📌</span>
                   </div>
