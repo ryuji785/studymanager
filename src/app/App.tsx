@@ -10,6 +10,7 @@ import PlanPage from '../pages/PlanPage';
 import MaterialsPage from '../pages/MaterialsPage';
 import HistoryPage from '../pages/HistoryPage';
 import MonthlyCalendarPage from '../pages/MonthlyCalendarPage';
+import SetupWizardPage from '../pages/SetupWizardPage';
 import LoginPage from '../pages/LoginPage';
 import '../styles/app.css';
 
@@ -99,12 +100,28 @@ function AuthenticatedLayout() {
   const fetchBooks = useBookStore((s) => s.fetchBooks);
   const fetchTasks = useTaskStore((s) => s.fetchTasks);
   const fetchGoals = useGoalStore((s) => s.fetchGoals);
+  const goals = useGoalStore((s) => s.goals);
+  const goalsLoading = useGoalStore((s) => s.isLoading);
+  const [dataReady, setDataReady] = useState(false);
+  const [setupDone, setSetupDone] = useState(false);
 
   useEffect(() => {
-    fetchBooks();
-    fetchTasks();
-    fetchGoals();
+    Promise.all([fetchBooks(), fetchTasks(), fetchGoals()]).then(() => setDataReady(true));
   }, []);
+
+  // Show loading while initial data is being fetched
+  if (!dataReady) {
+    return <LoadingScreen />;
+  }
+
+  // Show wizard if no goals exist (first time user)
+  if (goals.length === 0 && !setupDone) {
+    return <SetupWizardPage onComplete={() => {
+      setSetupDone(true);
+      fetchGoals();
+      fetchBooks();
+    }} />;
+  }
 
   return (
     <div className="bg-slate-50 min-h-screen w-full font-sans antialiased text-slate-600">
