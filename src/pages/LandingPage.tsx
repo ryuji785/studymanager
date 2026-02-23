@@ -19,7 +19,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img
-              src="/studymanager-icon.svg"
+              src="/studymanager-icon.png"
               alt="StudyManager icon"
               className="w-8 h-8 rounded-lg shadow-lg shadow-indigo-200"
             />
@@ -256,7 +256,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 font-bold text-slate-700">
             <img
-              src="/studymanager-icon.svg"
+              src="/studymanager-icon.png"
               alt="StudyManager icon"
               className="w-4 h-4 rounded"
             />
