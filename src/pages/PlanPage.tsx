@@ -51,34 +51,55 @@ function TaskItem({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasDragged = useRef(false);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const pointerDownEvent = useRef<React.PointerEvent | null>(null);
+
+  const startDrag = () => {
+    if (isDraggable) return;
+    wasDragged.current = true;
+    setIsDraggable(true);
+    // Defer controls.start to next frame so React commits drag={true} first
+    requestAnimationFrame(() => {
+      if (pointerDownEvent.current) {
+        try { controls.start(pointerDownEvent.current as any); } catch { /* */ }
+      }
+    });
+  };
 
   const handlePointerDown = (e: React.PointerEvent) => {
     wasDragged.current = false;
     pointerStart.current = { x: e.clientX, y: e.clientY };
+    pointerDownEvent.current = e;
     if (e.pointerType === 'touch') {
       longPressTimer.current = setTimeout(() => {
-        setIsDraggable(true);
-        wasDragged.current = true;
-        try { controls.start(e as any); if (navigator.vibrate) navigator.vibrate(50); } catch { /* */ }
+        startDrag();
+        if (navigator.vibrate) navigator.vibrate(50);
       }, 500);
     }
-    // Mouse: do NOT immediately start drag — wait for movement (handled in onPointerMove)
+    // Mouse: wait for vertical movement threshold (handled in onPointerMove)
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!pointerStart.current) return;
-    if (e.pointerType === 'touch') return; // touch uses long-press, not movement
+    if (!pointerStart.current || isDraggable) return;
+    if (e.pointerType === 'touch') {
+      // Cancel long-press if finger moves too much
+      const d = Math.abs(e.clientY - pointerStart.current.y) + Math.abs(e.clientX - pointerStart.current.x);
+      if (d > 10 && longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      return;
+    }
+    // Mouse: start drag after vertical movement threshold
     const dy = Math.abs(e.clientY - pointerStart.current.y);
-    if (dy > 4 && !isDraggable) {
-      setIsDraggable(true);
-      wasDragged.current = true;
-      try { controls.start(e as any); } catch { /* */ }
+    if (dy > 4) {
+      startDrag();
     }
   };
 
   const handlePointerUp = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
     pointerStart.current = null;
+    pointerDownEvent.current = null;
     if (!wasDragged.current) setIsDraggable(false);
   };
 
