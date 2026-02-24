@@ -226,17 +226,17 @@ export default function HistoryPage() {
           </div>
           {hasAnyCompletedTask ? (
             <>
-              <div className="h-48 flex items-end gap-[3px] rounded-xl bg-slate-50 p-3">
+              <div className="flex items-end gap-[3px] rounded-xl bg-slate-50 p-3" style={{ height: 192 }}>
                 {historyData.hourlyCounts.map((count, hour) => {
-                  const height = count > 0 ? Math.max(8, (count / maxHourlyCount) * 100) : 4;
+                  const barMaxH = 144; // px available for bars (192 - padding - label)
+                  const barH = count > 0 ? Math.max(6, Math.round((count / maxHourlyCount) * barMaxH)) : 3;
                   return (
-                    <div key={hour} className="flex-1 flex flex-col items-center justify-end min-w-[10px]">
+                    <div key={hour} className="flex-1 flex flex-col items-center justify-end h-full min-w-0">
                       <div
-                        className={`w-full rounded-t-md transition-all ${count > 0 ? 'bg-indigo-500/90' : 'bg-slate-200/60'
-                          }`}
-                        style={{ height: `${height}%` }}
+                        className={`w-full rounded-t-md ${count > 0 ? 'bg-indigo-500' : 'bg-slate-200/60'}`}
+                        style={{ height: barH }}
                       />
-                      <span className="mt-1 text-[9px] leading-none text-slate-400">
+                      <span className="mt-1 text-[9px] leading-none text-slate-400 shrink-0">
                         {hour % 3 === 0 ? `${hour}` : ''}
                       </span>
                     </div>

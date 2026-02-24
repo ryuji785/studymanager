@@ -117,10 +117,13 @@ export async function initDb(): Promise<void> {
     function dateKey(off: number) { const d = new Date(today); d.setDate(d.getDate() + off); return d.toISOString().slice(0, 10); }
 
     const templates = [
-      { bookId: 1, title: 'キャリコン学科（過去問）', color: 'bg-indigo-50 text-indigo-700 border-indigo-100', start: 390, dur: 45 },
-      { bookId: 2, title: '理論と実際', color: 'bg-amber-50 text-amber-700 border-amber-100', start: 1260, dur: 60 },
-      { bookId: 3, title: 'キャリア理論まとめノート', color: 'bg-emerald-50 text-emerald-700 border-emerald-100', start: 1260, dur: 60 },
-      { bookId: 7, title: 'ロールプレイ練習帳', color: 'bg-violet-50 text-violet-700 border-violet-100', start: 1170, dur: 45 },
+      { bookId: 1, title: 'キャリコン学科（過去問）', color: 'bg-indigo-50 text-indigo-700 border-indigo-100', start: 390, dur: 45 },  // 06:30
+      { bookId: 2, title: '理論と実際', color: 'bg-amber-50 text-amber-700 border-amber-100', start: 600, dur: 60 },  // 10:00
+      { bookId: 3, title: 'キャリア理論まとめノート', color: 'bg-emerald-50 text-emerald-700 border-emerald-100', start: 780, dur: 60 },  // 13:00
+      { bookId: 7, title: 'ロールプレイ練習帳', color: 'bg-violet-50 text-violet-700 border-violet-100', start: 1170, dur: 45 },  // 19:30
+      { bookId: 4, title: '職業能力開発促進法テキスト', color: 'bg-blue-50 text-blue-700 border-blue-100', start: 480, dur: 60 },  // 08:00
+      { bookId: 5, title: 'キャリコン実技（論述）', color: 'bg-blue-50 text-blue-700 border-blue-100', start: 870, dur: 60 },  // 14:30
+      { bookId: 6, title: 'キャリコン実技（面接）', color: 'bg-emerald-50 text-emerald-700 border-emerald-100', start: 930, dur: 45 },  // 15:30
     ];
 
     for (let dayOff = -21; dayOff <= 7; dayOff++) {
@@ -129,34 +132,44 @@ export async function initDb(): Promise<void> {
       const dow = d.getDay();
       const isPast = dayOff < 0;
 
-      // Morning study
-      const t1 = templates[0];
+      // Morning study (06:30)
       await client.execute({
         sql: `INSERT INTO tasks (user_id, book_id, date, start_minutes, duration, title, color, type, is_completed) VALUES (?,?,?,?,?,?,?,?,?)`,
-        args: ['local', t1.bookId, key, t1.start, t1.dur, t1.title, t1.color, 'study', isPast ? 1 : 0]
+        args: ['local', templates[0].bookId, key, templates[0].start, templates[0].dur, templates[0].title, templates[0].color, 'study', isPast ? 1 : 0]
       });
 
-      // Evening study (rotate)
-      const t2 = templates[(Math.abs(dayOff) % 2) + 1];
+      // Mid-morning study (08:00 or 10:00, alternating)
+      const t2 = templates[dayOff % 2 === 0 ? 4 : 1];
       await client.execute({
         sql: `INSERT INTO tasks (user_id, book_id, date, start_minutes, duration, title, color, type, is_completed) VALUES (?,?,?,?,?,?,?,?,?)`,
         args: ['local', t2.bookId, key, t2.start, t2.dur, t2.title, t2.color, 'study', isPast ? 1 : 0]
       });
 
-      // Tue/Thu: role play
+      // Afternoon study (13:00)
+      const t3 = templates[2];
+      await client.execute({
+        sql: `INSERT INTO tasks (user_id, book_id, date, start_minutes, duration, title, color, type, is_completed) VALUES (?,?,?,?,?,?,?,?,?)`,
+        args: ['local', t3.bookId, key, t3.start, t3.dur, t3.title, t3.color, 'study', isPast ? 1 : 0]
+      });
+
+      // Evening study (19:30) — Tue/Thu
       if (dow === 2 || dow === 4) {
-        const t3 = templates[3];
+        const t4 = templates[3];
         await client.execute({
           sql: `INSERT INTO tasks (user_id, book_id, date, start_minutes, duration, title, color, type, is_completed) VALUES (?,?,?,?,?,?,?,?,?)`,
-          args: ['local', t3.bookId, key, t3.start, t3.dur, t3.title, t3.color, 'study', isPast ? 1 : 0]
+          args: ['local', t4.bookId, key, t4.start, t4.dur, t4.title, t4.color, 'study', isPast ? 1 : 0]
         });
       }
 
-      // Weekend extra
+      // Weekend extra (14:30 + 15:30)
       if (dow === 0 || dow === 6) {
         await client.execute({
           sql: `INSERT INTO tasks (user_id, book_id, date, start_minutes, duration, title, color, type, is_completed) VALUES (?,?,?,?,?,?,?,?,?)`,
-          args: ['local', 5, key, 600, 90, 'キャリコン実技（論述）', 'bg-blue-50 text-blue-700 border-blue-100', 'study', isPast ? 1 : 0]
+          args: ['local', templates[5].bookId, key, templates[5].start, templates[5].dur, templates[5].title, templates[5].color, 'study', isPast ? 1 : 0]
+        });
+        await client.execute({
+          sql: `INSERT INTO tasks (user_id, book_id, date, start_minutes, duration, title, color, type, is_completed) VALUES (?,?,?,?,?,?,?,?,?)`,
+          args: ['local', templates[6].bookId, key, templates[6].start, templates[6].dur, templates[6].title, templates[6].color, 'study', isPast ? 1 : 0]
         });
       }
     }
