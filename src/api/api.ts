@@ -17,8 +17,22 @@ export function isDevLoginEnabled(): boolean {
 }
 
 export function setDevSession(active: boolean): void {
-  if (active) localStorage.setItem(DEV_SESSION_KEY, '1');
-  else localStorage.removeItem(DEV_SESSION_KEY);
+  if (active) {
+    localStorage.setItem(DEV_SESSION_KEY, '1');
+    // Seed data on first activation (when no data exists yet)
+    if (!localStorage.getItem(LS_PREFIX + 'goals')) {
+      import('./devSeedData').then(({ SEED_GOALS, SEED_BOOKS, SEED_TASKS }) => {
+        lsSet('goals', SEED_GOALS);
+        lsSet('books', SEED_BOOKS);
+        lsSet('tasks', SEED_TASKS);
+        console.log('[DevMode] テストデータを投入しました:', { goals: SEED_GOALS.length, books: SEED_BOOKS.length, tasks: SEED_TASKS.length });
+        // Reload to pick up seed data in stores
+        window.location.reload();
+      });
+    }
+  } else {
+    localStorage.removeItem(DEV_SESSION_KEY);
+  }
 }
 
 // --- localStorage helpers ---
