@@ -84,8 +84,16 @@ export default function HistoryPage() {
     const recordMap = dailyRecords.reduce<Record<string, number>>((acc, e) => { acc[e.dateKey] = e.minutes; return acc; }, {});
     const firstWeekStart = getWeekStartMonday(addDays(today, -133));
     const heatmapCells: { key: string; minutes: number; column: number; row: number }[] = [];
+    const monthLabels: { label: string; column: number }[] = [];
+    let lastMonth = -1;
     for (let week = 0; week < 20; week++) {
       const weekStart = addDays(firstWeekStart, week * 7);
+      const m = weekStart.getMonth();
+      if (m !== lastMonth) {
+        const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        monthLabels.push({ label: monthNames[m], column: week + 1 });
+        lastMonth = m;
+      }
       for (let d = 0; d < 7; d++) {
         const date = addDays(weekStart, d);
         const key = toDateKey(date);
@@ -116,6 +124,7 @@ export default function HistoryPage() {
       currentStreak,
       encouragement,
       heatmapCells,
+      monthLabels,
       hourlyCounts,
       subjectBreakdown,
       insightComment,
@@ -177,7 +186,14 @@ export default function HistoryPage() {
                   <div style={{ gridRow: 3 }} className="flex items-center justify-end">水</div>
                   <div style={{ gridRow: 5 }} className="flex items-center justify-end">金</div>
                 </div>
-                <div ref={heatmapScrollRef} className="overflow-x-auto pb-2">
+                <div ref={heatmapScrollRef} className="overflow-x-auto pb-2 flex-1">
+                  {/* Month labels */}
+                  <div className="grid min-w-max gap-1 mb-1" style={{ gridAutoFlow: 'column', gridAutoColumns: '16px' }}>
+                    {historyData.monthLabels.map((ml) => (
+                      <span key={ml.column} className="text-[10px] text-slate-500 whitespace-nowrap" style={{ gridColumn: ml.column }}>{ml.label}</span>
+                    ))}
+                  </div>
+                  {/* Heatmap grid */}
                   <div className="grid min-w-max gap-1" style={{ gridTemplateRows: 'repeat(7, 1fr)', gridAutoFlow: 'column', gridAutoColumns: '16px' }}>
                     {historyData.heatmapCells.map((cell) => (
                       <div key={cell.key} title={`${cell.key} / ${cell.minutes}分`} className={`h-4 w-4 rounded-[4px] ${getHeatmapTone(cell.minutes)}`} style={{ gridColumn: cell.column, gridRow: cell.row }} />
@@ -208,18 +224,33 @@ export default function HistoryPage() {
             <h3 className="text-lg font-bold text-slate-700">時間帯別の集中度</h3>
             <p className="text-xs text-slate-500 mt-1">よく学習する時間帯がひと目でわかります</p>
           </div>
-          <div className="h-48 flex items-end gap-1 rounded-xl bg-slate-50 p-3">
-            {historyData.hourlyCounts.map((count, hour) => {
-              const height = Math.max(4, (count / maxHourlyCount) * 100);
-              return (
-                <div key={hour} className="flex-1 flex flex-col items-center justify-end min-w-[12px]">
-                  <div className={`w-full rounded-t-md ${count > 0 ? 'bg-indigo-500/90' : 'bg-slate-200'}`} style={{ height: `${height}%` }} />
-                  <span className="mt-1 h-3 text-[10px] text-slate-500">{hour % 6 === 0 ? hour : ''}</span>
-                </div>
-              );
-            })}
-          </div>
-          <p className="rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-700">{historyData.insightComment}</p>
+          {hasAnyCompletedTask ? (
+            <>
+              <div className="h-48 flex items-end gap-[3px] rounded-xl bg-slate-50 p-3">
+                {historyData.hourlyCounts.map((count, hour) => {
+                  const height = count > 0 ? Math.max(8, (count / maxHourlyCount) * 100) : 4;
+                  return (
+                    <div key={hour} className="flex-1 flex flex-col items-center justify-end min-w-[10px]">
+                      <div
+                        className={`w-full rounded-t-md transition-all ${count > 0 ? 'bg-indigo-500/90' : 'bg-slate-200/60'
+                          }`}
+                        style={{ height: `${height}%` }}
+                      />
+                      <span className="mt-1 text-[9px] leading-none text-slate-400">
+                        {hour % 3 === 0 ? `${hour}` : ''}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-700">{historyData.insightComment}</p>
+            </>
+          ) : (
+            <div className="text-center py-8 text-slate-400">
+              <p className="text-sm">まだ完了したタスクがありません。</p>
+              <p className="text-xs mt-1">タスクを完了すると、時間帯別の集中度が表示されます。</p>
+            </div>
+          )}
         </section>
 
         {/* Subject Breakdown */}
