@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authApi, type AuthUser, ApiError, isDevMode, setDevSession } from '../api/api';
+import { authApi, type AuthUser, ApiError, isDevMode, isDevLoginEnabled, setDevSession } from '../api/api';
 
 interface AuthState {
   user: AuthUser | null;
@@ -19,7 +19,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: async () => {
     set({ isLoading: true, error: null });
-    // If dev session is active on localhost, return mock user immediately
     if (isDevMode()) {
       set({ user: DEV_USER, isLoading: false });
       return;
@@ -48,14 +47,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   devLogin: async () => {
     set({ isLoading: true, error: null });
-    // On localhost: set dev session flag and use mock user (no backend needed)
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocalhost) {
+    if (isDevLoginEnabled()) {
       setDevSession(true);
       set({ user: DEV_USER, isLoading: false });
       return;
     }
-    // Non-localhost: try server-based dev login
+    // Fallback: server-based dev login
     try {
       const res = await fetch('/auth/dev-login', {
         method: 'POST',

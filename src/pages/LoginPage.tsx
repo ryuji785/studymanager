@@ -1,12 +1,13 @@
 import React from 'react';
 import { Target } from 'lucide-react';
-import { authApi } from '../api/api';
+import { authApi, isDevLoginEnabled } from '../api/api';
 import { useAuthStore } from '../stores/useAuthStore';
 
 export default function LoginPage() {
   const devLogin = useAuthStore((s) => s.devLogin);
   const error = useAuthStore((s) => s.error);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const showDevLogin = isDevLoginEnabled();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-indigo-900 to-violet-900 flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -56,19 +57,21 @@ export default function LoginPage() {
             Google で続ける
           </a>
 
-          {/* 開発モード用ログインボタン */}
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <button
-              onClick={devLogin}
-              disabled={isLoading}
-              className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-indigo-200 rounded-2xl font-semibold text-sm transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              🛠 開発モードで続ける
-            </button>
-            <p className="text-[11px] text-indigo-300/40 text-center mt-2">
-              Google OAuth 未設定時のみ使用
-            </p>
-          </div>
+          {/* 開発モード用ログインボタン（VITE_ENABLE_DEV_LOGIN=true 時のみ表示） */}
+          {showDevLogin && (
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <button
+                onClick={devLogin}
+                disabled={isLoading}
+                className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-indigo-200 rounded-2xl font-semibold text-sm transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                🛠 開発モードで続ける
+              </button>
+              <p className="text-[11px] text-indigo-300/40 text-center mt-2">
+                Google OAuth 未設定時のみ使用
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

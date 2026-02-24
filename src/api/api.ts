@@ -4,12 +4,16 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // ---------- Dev Mode (localhost without backend) ----------
 
-const IS_LOCALHOST = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const DEV_LOGIN_ENABLED = import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true';
 const DEV_SESSION_KEY = 'sm_dev_session';
 const LS_PREFIX = 'sm_dev_';
 
 export function isDevMode(): boolean {
-  return IS_LOCALHOST && localStorage.getItem(DEV_SESSION_KEY) === '1';
+  return DEV_LOGIN_ENABLED && localStorage.getItem(DEV_SESSION_KEY) === '1';
+}
+
+export function isDevLoginEnabled(): boolean {
+  return DEV_LOGIN_ENABLED;
 }
 
 export function setDevSession(active: boolean): void {
