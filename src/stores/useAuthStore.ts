@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authApi, type AuthUser, ApiError, isDevMode, isDevLoginEnabled, setDevSession } from '../api/api';
+import { authApi, type AuthUser, ApiError } from '../api/api';
 
 interface AuthState {
   user: AuthUser | null;
@@ -10,8 +10,6 @@ interface AuthState {
   devLogin: () => Promise<void>;
 }
 
-const DEV_USER: AuthUser = { id: 'dev-user', name: 'Dev User', email: 'dev@localhost' };
-
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: true,
@@ -19,10 +17,6 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: async () => {
     set({ isLoading: true, error: null });
-    if (isDevMode()) {
-      set({ user: DEV_USER, isLoading: false });
-      return;
-    }
     try {
       const user = await authApi.me();
       set({ user, isLoading: false });
@@ -41,30 +35,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // ignore
     }
-    setDevSession(false);
     set({ user: null });
   },
 
   devLogin: async () => {
     set({ isLoading: true, error: null });
-    if (isDevLoginEnabled()) {
-      setDevSession(true);
-      set({ user: DEV_USER, isLoading: false });
-      return;
-    }
-    // Fallback: server-based dev login
     try {
-      const res = await fetch('/auth/dev-login', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) throw new Error('Dev login failed');
-      const user = await res.json();
+      const user = await authApi.devLogin();
       set({ user, isLoading: false });
     } catch (e) {
-      set({ isLoading: false, error: '開発ログインに失敗しました' });
+      set({ isLoading: false, error: '開発ログインに失敗しました。バックエンドが起動しているか確認してください。' });
     }
   },
 }));
-
