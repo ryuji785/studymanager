@@ -4,7 +4,9 @@ import { Clock, Check, ChevronRight, Target, TrendingUp, X, Calendar, Plus, Flag
 import Header from '../components/Header';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useGoalStore } from '../stores/useGoalStore';
+import { useBillingStore } from '../stores/useBillingStore';
 import { getTaskStartMinutes, toTimeString, toDateKey } from '../utils';
+import UpgradePrompt from '../components/UpgradePrompt';
 
 export default function HomePage() {
   const tasks = useTaskStore((s) => s.tasks);
@@ -44,6 +46,8 @@ export default function HomePage() {
   const addGoal = useGoalStore((s) => s.addGoal);
   const deleteGoal = useGoalStore((s) => s.deleteGoal);
   const setActiveGoal = useGoalStore((s) => s.setActiveGoal);
+  const goalLimit = useBillingStore((s) => s.getGoalLimit)();
+  const isAtGoalLimit = goals.length >= goalLimit;
 
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isGoalListOpen, setIsGoalListOpen] = useState(false);
@@ -73,6 +77,7 @@ export default function HomePage() {
   };
 
   const openNewGoalModal = () => {
+    if (isAtGoalLimit) return; // Blocked by plan limit
     setGoalDraft({ title: '', examDate: '', targetHours: 150, weekdayHoursTarget: 1.5, weekendHoursTarget: 3.0 });
     setIsNewGoalMode(true);
     setIsGoalModalOpen(true);
@@ -185,8 +190,9 @@ export default function HomePage() {
                     </button>
                   )}
                   <button
-                    onClick={openNewGoalModal}
-                    className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs font-semibold backdrop-blur-md transition-colors flex items-center gap-1"
+                    onClick={() => { if (!isAtGoalLimit) openNewGoalModal(); }}
+                    className={`px-3 py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs font-semibold backdrop-blur-md transition-colors flex items-center gap-1 ${isAtGoalLimit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={isAtGoalLimit ? `Freeプランでは目標は${goalLimit}つまでです` : ''}
                   >
                     <Plus size={10} /> 新規
                   </button>
@@ -481,6 +487,14 @@ export default function HomePage() {
             >
               <Plus size={16} /> 新しい目標を追加
             </button>
+            {isAtGoalLimit && (
+              <div className="mt-3">
+                <UpgradePrompt
+                  featureLabel={`Freeプランでは目標は${goalLimit}つまでです`}
+                  description="Proプランにアップグレードすると、複数目標を同時管理できます。"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

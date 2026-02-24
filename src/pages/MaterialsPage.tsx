@@ -4,8 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useBookStore } from '../stores/useBookStore';
 import { useTaskStore } from '../stores/useTaskStore';
+import { useBillingStore } from '../stores/useBillingStore';
 import { BOOK_CATEGORIES, BOOK_COLOR_PALETTE, type Book as BookType } from '../constants';
 import { getPaletteByKey, toDateKey } from '../utils';
+import UpgradePrompt from '../components/UpgradePrompt';
+import AdBanner from '../components/AdBanner';
 
 export default function MaterialsPage() {
   const navigate = useNavigate();
@@ -17,6 +20,10 @@ export default function MaterialsPage() {
   const deleteBook = useBookStore((s) => s.deleteBook);
   const updateBookProgress = useBookStore((s) => s.updateBookProgress);
   const addTask = useTaskStore((s) => s.addTask);
+  const bookLimit = useBillingStore((s) => s.getBookLimit)();
+  const activeBooks = books.filter((b) => b.status === 'active');
+  const isAtBookLimit = activeBooks.length >= bookLimit;
+  const bookLimitLabel = bookLimit === Infinity ? '' : `${activeBooks.length}/${bookLimit}`;
 
   const [materialsTab, setMaterialsTab] = useState('desk');
   const [materialsView, setMaterialsView] = useState('card');
@@ -37,6 +44,7 @@ export default function MaterialsPage() {
   const [bookDraft, setBookDraft] = useState<BookType | null>(null);
 
   const createBook = () => {
+    if (isAtBookLimit) return;
     addBook(
       newBookTitle,
       newBookCategory,
@@ -180,10 +188,20 @@ export default function MaterialsPage() {
         {materialsView === 'card' ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {showAddButton && (
-              <button onClick={() => setIsAddBookModalOpen(true)} className="aspect-[3/4] rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50">
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mb-2"><Plus size={20} /></div>
-                <span className="text-xs font-bold">新しい本</span>
-              </button>
+              isAtBookLimit ? (
+                <div className="aspect-[3/4] rounded-2xl flex flex-col items-center justify-center">
+                  <UpgradePrompt
+                    featureLabel={`教材の登録数が上限（${bookLimit}冊）に達しました`}
+                    description="Proプランにアップグレードすると、教材を無制限に登録できます。"
+                  />
+                </div>
+              ) : (
+                <button onClick={() => setIsAddBookModalOpen(true)} className="aspect-[3/4] rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mb-2"><Plus size={20} /></div>
+                  <span className="text-xs font-bold">新しい本</span>
+                  {bookLimitLabel && <span className="text-[10px] text-slate-400 mt-1">{bookLimitLabel}</span>}
+                </button>
+              )
             )}
             {sortedBooks.map((book) => {
               const isCompleted = book.status === 'completed';
@@ -275,9 +293,16 @@ export default function MaterialsPage() {
         ) : (
           <div className="space-y-3">
             {showAddButton && (
-              <button onClick={() => setIsAddBookModalOpen(true)} className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-white px-4 py-4 text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-2">
-                <Plus size={18} /><span className="text-sm font-semibold">新しい本を追加</span>
-              </button>
+              isAtBookLimit ? (
+                <UpgradePrompt
+                  featureLabel={`教材の登録数が上限（${bookLimit}冊）に達しました`}
+                  description="Proプランにアップグレードすると、教材を無制限に登録できます。"
+                />
+              ) : (
+                <button onClick={() => setIsAddBookModalOpen(true)} className="w-full rounded-2xl border-2 border-dashed border-slate-200 bg-white px-4 py-4 text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-2">
+                  <Plus size={18} /><span className="text-sm font-semibold">新しい本を追加{bookLimitLabel ? ` (${bookLimitLabel})` : ''}</span>
+                </button>
+              )
             )}
             {sortedBooks.map((book) => {
               const isCompleted = book.status === 'completed';
@@ -559,6 +584,11 @@ export default function MaterialsPage() {
           </div>
         </div>
       )}
+
+      {/* Ad Banner (Free plan only) */}
+      <div className="px-4 sm:px-6 lg:px-8">
+        <AdBanner />
+      </div>
     </div>
   );
 }
