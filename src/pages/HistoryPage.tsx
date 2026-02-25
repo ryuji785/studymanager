@@ -3,9 +3,7 @@ import Header from '../components/Header';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useBookStore } from '../stores/useBookStore';
 import { useGoalStore } from '../stores/useGoalStore';
-import { useBillingStore } from '../stores/useBillingStore';
 import { getTaskStartMinutes, addDays, toDateKey, getWeekStartMonday } from '../utils';
-import UpgradePrompt from '../components/UpgradePrompt';
 import AdBanner from '../components/AdBanner';
 
 function getHeatmapTone(minutes: number): string {
@@ -20,7 +18,6 @@ export default function HistoryPage() {
   const books = useBookStore((s) => s.books);
   const activeGoal = useGoalStore((s) => s.getActiveGoal());
   const heatmapScrollRef = useRef<HTMLDivElement>(null);
-  const canViewFullHistory = useBillingStore((s) => s.canUseFeature)('full_history');
 
   const historyData = useMemo(() => {
     const today = new Date();
@@ -220,17 +217,10 @@ export default function HistoryPage() {
               <p className="text-xs mt-1">タスクを完了すると、ここに学習記録が表示されます。</p>
             </div>
           )}
-          {!canViewFullHistory && (
-            <UpgradePrompt
-              overlay
-              featureLabel="全期間の学習足あと"
-              description="Proプランですべての学習記録を確認できます。"
-            />
-          )}
         </section>
 
         {/* Hourly Chart */}
-        <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4 relative">
+        <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
           <div>
             <h3 className="text-lg font-bold text-slate-700">時間帯別の集中度</h3>
             <p className="text-xs text-slate-500 mt-1">よく学習する時間帯がひと目でわかります</p>
@@ -262,17 +252,10 @@ export default function HistoryPage() {
               <p className="text-xs mt-1">タスクを完了すると、時間帯別の集中度が表示されます。</p>
             </div>
           )}
-          {!canViewFullHistory && (
-            <UpgradePrompt
-              overlay
-              featureLabel="時間帯別の集中度分析"
-              description="Proプランで詳細な学習分析が見られます。"
-            />
-          )}
         </section>
 
         {/* Subject Breakdown */}
-        <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4 relative">
+        <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
           <div>
             <h3 className="text-lg font-bold text-slate-700">科目別のバランス</h3>
             <p className="text-xs text-slate-500 mt-1">カテゴリ別の学習比率（完了済みタスクより）</p>
@@ -299,13 +282,6 @@ export default function HistoryPage() {
             <div className="text-center py-6 text-slate-400">
               <p className="text-sm">完了した学習タスクがないため、科目別データを表示できません。</p>
             </div>
-          )}
-          {!canViewFullHistory && (
-            <UpgradePrompt
-              overlay
-              featureLabel="科目別バランス分析"
-              description="Proプランでカテゴリ別の詳細な分析を確認できます。"
-            />
           )}
         </section>
 
