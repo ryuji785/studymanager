@@ -4,6 +4,7 @@ import { useTaskStore } from '../stores/useTaskStore';
 import { useBookStore } from '../stores/useBookStore';
 import { useGoalStore } from '../stores/useGoalStore';
 import { getTaskStartMinutes, addDays, toDateKey, getWeekStartMonday } from '../utils';
+import AdBanner from '../components/AdBanner';
 
 function getHeatmapTone(minutes: number): string {
   if (minutes <= 0) return 'bg-slate-100';
@@ -173,7 +174,7 @@ export default function HistoryPage() {
         </section>
 
         {/* Heatmap */}
-        <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4">
+        <section className="bg-white rounded-2xl shadow-sm p-5 sm:p-6 space-y-4 relative">
           <div>
             <h3 className="text-lg font-bold text-slate-700">学習の足あと（直近3ヶ月）</h3>
             <p className="text-xs text-slate-500 mt-1">色の濃さで学習量を表しています</p>
@@ -283,6 +284,9 @@ export default function HistoryPage() {
             </div>
           )}
         </section>
+
+        {/* Ad Banner (Free plan only) */}
+        <AdBanner />
       </div>
     </div>
   );

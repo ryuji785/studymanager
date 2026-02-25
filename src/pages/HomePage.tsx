@@ -185,7 +185,7 @@ export default function HomePage() {
                     </button>
                   )}
                   <button
-                    onClick={openNewGoalModal}
+                    onClick={() => openNewGoalModal()}
                     className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-full text-xs font-semibold backdrop-blur-md transition-colors flex items-center gap-1"
                   >
                     <Plus size={10} /> 新規

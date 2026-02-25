@@ -13,6 +13,8 @@ import MonthlyCalendarPage from '../pages/MonthlyCalendarPage';
 import SetupWizardPage from '../pages/SetupWizardPage';
 import LoginPage from '../pages/LoginPage';
 import LandingPage from '../pages/LandingPage';
+import PrivacyPolicyPage from '../pages/PrivacyPolicyPage';
+import TermsPage from '../pages/TermsPage';
 import '../styles/app.css';
 
 // --- TabBar ---
@@ -175,12 +177,16 @@ export default function App() {
           <>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         ) : (
           <>
             <Route path="/" element={<Navigate to="/plan" replace />} />
             <Route path="/login" element={<Navigate to="/plan" replace />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route path="/*" element={<AuthenticatedLayout />} />
           </>
         )}

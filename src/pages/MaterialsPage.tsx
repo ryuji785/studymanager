@@ -6,6 +6,7 @@ import { useBookStore } from '../stores/useBookStore';
 import { useTaskStore } from '../stores/useTaskStore';
 import { BOOK_CATEGORIES, BOOK_COLOR_PALETTE, type Book as BookType } from '../constants';
 import { getPaletteByKey, toDateKey } from '../utils';
+import AdBanner from '../components/AdBanner';
 
 export default function MaterialsPage() {
   const navigate = useNavigate();
@@ -559,6 +560,11 @@ export default function MaterialsPage() {
           </div>
         </div>
       )}
+
+      {/* Ad Banner (Free plan only) */}
+      <div className="px-4 sm:px-6 lg:px-8">
+        <AdBanner />
+      </div>
     </div>
   );
 }

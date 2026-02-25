@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, BookOpen, LineChart, ArrowRight, Zap, Trophy, Sparkles } from 'lucide-react';
+import { CalendarDays, BookOpen, LineChart, ArrowRight, Zap, Trophy, Sparkles, Crown, Check } from 'lucide-react';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -227,6 +227,104 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section className="py-24 px-6 bg-white" id="pricing">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">
+              あなたに合ったプランを
+            </h2>
+            <p className="text-slate-500 max-w-2xl mx-auto text-lg">
+              まずは無料プランで始めて、必要に応じてアップグレードできます。
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+            {/* Free Plan */}
+            <div className="bg-slate-50 border border-slate-200 rounded-3xl p-8 flex flex-col">
+              <div className="mb-6">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200 text-slate-700 text-xs font-bold mb-3">
+                  🆓 Free
+                </span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-extrabold text-slate-900">¥0</span>
+                  <span className="text-slate-500 text-sm">/月</span>
+                </div>
+                <p className="text-sm text-slate-500 mt-2">基本機能で学習管理を始められます</p>
+              </div>
+              <ul className="space-y-3 flex-1 mb-8">
+                {[
+                  { text: '週計画の作成・閲覧', included: true },
+                  { text: '教材の登録（3冊まで）', included: true },
+                  { text: '目標の設定（1つまで）', included: true },
+                  { text: 'タスクの完了チェック', included: true },
+                  { text: '学習履歴（直近7日分）', included: true },
+                  { text: '全期間の履歴・詳細分析', included: false },
+                  { text: '週計画の自動生成', included: false },
+                  { text: '広告非表示', included: false },
+                ].map((item, i) => (
+                  <li key={i} className={`flex items-center gap-2.5 text-sm ${item.included ? 'text-slate-700' : 'text-slate-400'}`}>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${item.included ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-300'}`}>
+                      {item.included ? <Check size={12} strokeWidth={3} /> : <span className="text-xs">—</span>}
+                    </span>
+                    {item.text}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl transition-all active:scale-95 text-sm"
+              >
+                無料で始める
+              </button>
+            </div>
+
+            {/* Pro Plan */}
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-3xl p-8 flex flex-col text-white relative overflow-hidden shadow-xl shadow-indigo-200">
+              <div className="absolute top-0 right-0 p-3 opacity-10">
+                <Crown size={100} />
+              </div>
+              <div className="mb-6 relative z-10">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-bold mb-3 backdrop-blur-sm">
+                  ⭐ Pro
+                </span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-extrabold">¥480</span>
+                  <span className="text-indigo-200 text-sm">/月</span>
+                </div>
+                <p className="text-sm text-indigo-200 mt-1">年額 ¥3,980（実質 ¥332/月）</p>
+                <p className="text-sm text-indigo-100 mt-2">全機能を使って学習を加速させましょう</p>
+              </div>
+              <ul className="space-y-3 flex-1 mb-8 relative z-10">
+                {[
+                  'Freeの全機能',
+                  '教材の無制限登録',
+                  '複数目標の同時管理',
+                  '全期間の学習履歴・グラフ',
+                  '時間帯別集中度分析',
+                  '週計画の自動生成',
+                  '教材進捗レポート',
+                  '広告の非表示',
+                ].map((text, i) => (
+                  <li key={i} className="flex items-center gap-2.5 text-sm text-white">
+                    <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                      <Check size={12} strokeWidth={3} />
+                    </span>
+                    {text}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full py-3.5 bg-white hover:bg-slate-100 text-indigo-700 font-bold rounded-2xl transition-all active:scale-95 text-sm shadow-lg relative z-10"
+              >
+                30日間無料で試す
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="py-32 px-6 bg-slate-900 relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
@@ -261,6 +359,15 @@ export default function LandingPage() {
               className="w-4 h-4 rounded"
             />
             StudyManager
+          </div>
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate('/privacy')} className="hover:text-indigo-600 transition-colors">
+              プライバシーポリシー
+            </button>
+            <span className="text-slate-300">|</span>
+            <button onClick={() => navigate('/terms')} className="hover:text-indigo-600 transition-colors">
+              利用規約
+            </button>
           </div>
           <p>© 2026 StudyManager. All rights reserved.</p>
         </div>
