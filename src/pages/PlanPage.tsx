@@ -280,7 +280,7 @@ export default function PlanPage() {
 
   return (
     <div className="pb-24 animate-fade-in relative">
-      <Header title="計画表" onSettingsClick={() => setIsPlanSettingsOpen(true)} />
+      <Header title="計画表" showFreePlanLabel={false} onSettingsClick={() => setIsPlanSettingsOpen(true)} />
 
       {/* Week Navigation */}
       <div className="sticky top-[68px] z-20 bg-slate-50/95 backdrop-blur-sm pt-1">

@@ -73,7 +73,7 @@ export default function MonthlyCalendarPage() {
 
   return (
     <div className="min-h-screen pb-28">
-      <Header title="月間カレンダー" />
+      <Header title="月間カレンダー" showFreePlanLabel={false} />
 
       <div className="px-4 pt-3 pb-4 max-w-4xl mx-auto">
         {/* 月ナビゲーション */}
