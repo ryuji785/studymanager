@@ -344,6 +344,15 @@ export default function PlanPage() {
 
       {/* Timeline Grid */}
       <div className="px-4 sm:px-6 lg:px-8">
+        <div className="mb-3 flex justify-end">
+          <button
+            onClick={() => setIsPlanSettingsOpen(true)}
+            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+          >
+            <Clock size={14} className="text-indigo-500" />
+            表示時間を設定
+          </button>
+        </div>
         {outOfRangeCount > 0 && <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">表示範囲外の予定が {outOfRangeCount} 件あります。</div>}
         <div className="max-h-[calc(100svh-290px)] min-h-[420px] overflow-y-auto overscroll-contain pb-2">
           <div className="bg-white rounded-3xl p-1 shadow-sm border border-slate-100 relative overflow-hidden">
