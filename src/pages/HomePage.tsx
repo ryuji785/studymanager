@@ -48,12 +48,13 @@ export default function HomePage() {
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [isGoalListOpen, setIsGoalListOpen] = useState(false);
   const [isNewGoalMode, setIsNewGoalMode] = useState(false);
+  const [goalValidationError, setGoalValidationError] = useState('');
   const [goalDraft, setGoalDraft] = useState({
     title: activeGoal?.title || '',
     examDate: activeGoal?.examDate || '',
-    targetHours: activeGoal?.targetHours ?? 150,
-    weekdayHoursTarget: activeGoal?.weekdayHoursTarget ?? 1.5,
-    weekendHoursTarget: activeGoal?.weekendHoursTarget ?? 3.0,
+    targetHours: String(activeGoal?.targetHours ?? 150),
+    weekdayHoursTarget: String(activeGoal?.weekdayHoursTarget ?? 1.5),
+    weekendHoursTarget: String(activeGoal?.weekendHoursTarget ?? 3.0),
   });
 
   const openGoalEditModal = () => {
@@ -61,19 +62,21 @@ export default function HomePage() {
       setGoalDraft({
         title: activeGoal.title,
         examDate: activeGoal.examDate,
-        targetHours: activeGoal.targetHours,
-        weekdayHoursTarget: activeGoal.weekdayHoursTarget,
-        weekendHoursTarget: activeGoal.weekendHoursTarget,
+        targetHours: String(activeGoal.targetHours),
+        weekdayHoursTarget: String(activeGoal.weekdayHoursTarget),
+        weekendHoursTarget: String(activeGoal.weekendHoursTarget),
       });
     } else {
-      setGoalDraft({ title: '', examDate: '', targetHours: 150, weekdayHoursTarget: 1.5, weekendHoursTarget: 3.0 });
+      setGoalDraft({ title: '', examDate: '', targetHours: '150', weekdayHoursTarget: '1.5', weekendHoursTarget: '3.0' });
     }
+    setGoalValidationError('');
     setIsNewGoalMode(false);
     setIsGoalModalOpen(true);
   };
 
   const openNewGoalModal = () => {
-    setGoalDraft({ title: '', examDate: '', targetHours: 150, weekdayHoursTarget: 1.5, weekendHoursTarget: 3.0 });
+    setGoalDraft({ title: '', examDate: '', targetHours: '150', weekdayHoursTarget: '1.5', weekendHoursTarget: '3.0' });
+    setGoalValidationError('');
     setIsNewGoalMode(true);
     setIsGoalModalOpen(true);
     setIsGoalListOpen(false);
@@ -138,10 +141,37 @@ export default function HomePage() {
   }, [activeGoal, cumulativeStudyHours]);
 
   const saveGoal = () => {
+    const targetHours = Number(goalDraft.targetHours);
+    const weekdayHoursTarget = Number(goalDraft.weekdayHoursTarget);
+    const weekendHoursTarget = Number(goalDraft.weekendHoursTarget);
+
+    if (!goalDraft.targetHours.trim() || !goalDraft.weekdayHoursTarget.trim() || !goalDraft.weekendHoursTarget.trim()) {
+      setGoalValidationError('学習時間の入力欄はすべて必須です。未入力の項目を入力してください。');
+      return;
+    }
+
+    if (
+      Number.isNaN(targetHours) || Number.isNaN(weekdayHoursTarget) || Number.isNaN(weekendHoursTarget)
+      || targetHours <= 0 || weekdayHoursTarget <= 0 || weekendHoursTarget <= 0
+    ) {
+      setGoalValidationError('学習時間は 0 より大きい数値で入力してください。');
+      return;
+    }
+
+    const payload = {
+      title: goalDraft.title,
+      examDate: goalDraft.examDate,
+      targetHours,
+      weekdayHoursTarget,
+      weekendHoursTarget,
+      isActive: true,
+    };
+
+    setGoalValidationError('');
     if (isNewGoalMode) {
-      addGoal({ ...goalDraft, isActive: true });
+      addGoal(payload);
     } else if (activeGoal) {
-      updateGoal(activeGoal.id, goalDraft);
+      updateGoal(activeGoal.id, payload);
     }
     setIsGoalModalOpen(false);
   };
@@ -397,7 +427,7 @@ export default function HomePage() {
                   min="1"
                   step="1"
                   value={goalDraft.targetHours}
-                  onChange={(e) => setGoalDraft({ ...goalDraft, targetHours: Number(e.target.value) })}
+                  onChange={(e) => setGoalDraft({ ...goalDraft, targetHours: e.target.value })}
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
                 />
               </label>
@@ -410,7 +440,7 @@ export default function HomePage() {
                     min="0.1"
                     step="0.1"
                     value={goalDraft.weekdayHoursTarget}
-                    onChange={(e) => setGoalDraft({ ...goalDraft, weekdayHoursTarget: Number(e.target.value) })}
+                    onChange={(e) => setGoalDraft({ ...goalDraft, weekdayHoursTarget: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
                   />
                 </label>
@@ -421,11 +451,17 @@ export default function HomePage() {
                     min="0.1"
                     step="0.1"
                     value={goalDraft.weekendHoursTarget}
-                    onChange={(e) => setGoalDraft({ ...goalDraft, weekendHoursTarget: Number(e.target.value) })}
+                    onChange={(e) => setGoalDraft({ ...goalDraft, weekendHoursTarget: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-200"
                   />
                 </label>
               </div>
+
+              {goalValidationError && (
+                <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600">
+                  {goalValidationError}
+                </p>
+              )}
 
               <div className="grid grid-cols-2 gap-3 pt-4">
                 <button onClick={() => setIsGoalModalOpen(false)} className="py-3 flex items-center justify-center rounded-xl border border-slate-200 text-slate-600 bg-slate-50 font-bold text-sm">キャンセル</button>
